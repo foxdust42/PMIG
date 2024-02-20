@@ -1,5 +1,4 @@
 #include "pmig.h"
-#include "imageviewer.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -19,6 +18,9 @@ int main(int argc, char *argv[])
         }
     }
     PMIG w;
+
+
+
     w.show();
     return a.exec();
 }

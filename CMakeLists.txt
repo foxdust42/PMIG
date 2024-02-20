@@ -43,7 +43,13 @@ else()
     else()
         add_executable(PMIG
             ${PROJECT_SOURCES}
-            imageviewer.h imageviewer.cpp
+            debug_res.qrc
+            basefilter.h basefilter.cpp
+            functionalfilters.cpp
+
+
+
+
         )
     endif()
 

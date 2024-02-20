@@ -1,7 +1,12 @@
 #ifndef PMIG_H
 #define PMIG_H
 
+#include <qgraphicsitem.h>
+#include <QObject>
 #include <QMainWindow>
+#include <qgraphicsscene.h>
+
+#include "basefilter.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class PMIG; }
@@ -15,7 +20,28 @@ public:
     PMIG(QWidget *parent = nullptr);
     ~PMIG();
 
+public slots:
+    void slot_loadImage();
+    void slot_applyInv();
+
 private:
     Ui::PMIG *ui;
+
+    std::vector<Filters::BaseFilter*> filters;
+
+    //image display based on https://stackoverflow.com/questions/1357960/qt-jpg-image-display
+    QGraphicsScene *original_scene;
+    QGraphicsScene *new_scene;
+    QGraphicsTextItem *text;
+    QImage image;
+    QImage modified_image;
+    QGraphicsPixmapItem *item;
+    QGraphicsPixmapItem *modified_item;
+
+    void loadImage();
+    void loadRightImage();
+
+
+
 };
 #endif // PMIG_H
