@@ -45,7 +45,7 @@ else()
             ${PROJECT_SOURCES}
             debug_res.qrc
             basefilter.h basefilter.cpp
-            functionalfilters.cpp
+            functionalfilters.h
 
 
 

@@ -1,12 +1,12 @@
 #include "basefilter.h"
 
-namespace Filters {
+namespace FunctionalFilters {
 
-class BrightnessCorrectionFilter : public FunctionalFilter {
+class BrightnessCorrectionFilter : public Filters::FunctionalFilter {
 public:
     static const int base_offset = 20;
     BrightnessCorrectionFilter() : FunctionalFilter(){}
-    ~BrightnessCorrectionFilter();
+    ~BrightnessCorrectionFilter() {}
 
     void applyFilter(QImage *image){
         QRgb* row;

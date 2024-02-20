@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QMainWindow>
 #include <qgraphicsscene.h>
+#include <qlistwidget.h>
+
 
 #include "basefilter.h"
 
@@ -23,6 +25,7 @@ public:
 public slots:
     void slot_loadImage();
     void slot_applyInv();
+    void slot_listFunctional(QListWidgetItem *item);
 
 private:
     Ui::PMIG *ui;

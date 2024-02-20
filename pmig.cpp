@@ -1,6 +1,7 @@
 #include "pmig.h"
 #include "./ui_pmig.h"
 #include "basefilter.h"
+#include "functionalfilters.h"
 
 #include <QGraphicsPixmapItem>
 #include <QDebug>
@@ -13,8 +14,9 @@ PMIG::PMIG(QWidget *parent)
     ui->setupUi(this);
 
     filters.push_back(new Filters::InversionFilter());
+    filters.push_back(new FunctionalFilters::BrightnessCorrectionFilter());
 
-
+    //ui->listWidget_Functional->addItem();
 
     //ui->graphicsViewLeft->setScene(&this->original_scene);
     QObject::connect(ui->actionOpen, &QAction::triggered,
@@ -23,6 +25,8 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_applyInv);
     QObject::connect(ui->actionUp_Brightness, &QAction::triggered,
                      this, &PMIG::slot_applyInv);
+    QObject::connect(ui->listWidget_Functional, &QListWidget::itemDoubleClicked,
+                     this, &PMIG::slot_listFunctional);
 
     QTextStream(stdout) << "Setup Done\n" ;
 
@@ -39,12 +43,15 @@ void PMIG::loadImage() {
     //QBrush blueBrush(Qt::blue);
 
     image = QImage(":/debug/amongkill.jpg");
+    modified_image = QImage(image);
     //image = image.scaledToHeight(50);
     this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
     this->item->setFlag(QGraphicsItem::ItemIsMovable);
     original_scene->addItem(this->item);
     text = original_scene->addText("ABCD", QFont("Arial", 20));
     text->setFlag(QGraphicsItem::ItemIsMovable);
+
+    loadRightImage();
 
 }
 
@@ -54,13 +61,13 @@ void PMIG::slot_loadImage(){
 }
 
 void PMIG::slot_applyInv(){
-    if (image.isNull()) {
+    if (modified_image.isNull()) {
         QTextStream(stdout) << "Nothing to invert\n";
         return;
     }
-    modified_image = QImage(image);
+    //modified_image = QImage(image);
 
-    filters[0]->applyFilter(&modified_image);
+    filters[1]->applyFilter(&modified_image);
 
     loadRightImage();
 
