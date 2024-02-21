@@ -18,10 +18,10 @@
     <item row="0" column="0">
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="0" column="0">
-       <widget class="QGraphicsView" name="graphicsViewLeft"/>
+       <widget class="Widgets::ImageView" name="graphicsViewLeft"/>
       </item>
       <item row="0" column="1">
-       <widget class="QGraphicsView" name="graphicsViewRight"/>
+       <widget class="Widgets::ImageView" name="graphicsViewRight"/>
       </item>
      </layout>
     </item>
@@ -116,6 +116,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Widgets::ImageView</class>
+   <extends>QGraphicsView</extends>
+   <header>imageview.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

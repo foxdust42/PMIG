@@ -27,6 +27,7 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_applyInv);
     QObject::connect(ui->listWidget_Functional, &QListWidget::itemDoubleClicked,
                      this, &PMIG::slot_listFunctional);
+    //QObject::connect(ui->graphicsViewLeft, &QWidget::)
 
     QTextStream(stdout) << "Setup Done\n" ;
 
@@ -58,6 +59,10 @@ void PMIG::loadImage() {
 void PMIG::slot_loadImage(){
     this->loadImage();
     QTextStream(stdout) << "AAABBB\n";
+}
+
+void PMIG::slot_listFunctional(QListWidgetItem *item){
+
 }
 
 void PMIG::slot_applyInv(){
@@ -93,4 +98,3 @@ PMIG::~PMIG()
     }
     delete ui;
 }
-

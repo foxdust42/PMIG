@@ -7,7 +7,6 @@
 #include <qgraphicsscene.h>
 #include <qlistwidget.h>
 
-
 #include "basefilter.h"
 
 QT_BEGIN_NAMESPACE

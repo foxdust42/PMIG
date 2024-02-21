@@ -20,7 +20,11 @@ set(PROJECT_SOURCES
         pmig.h
         pmig.ui
         ${TS_FILES}
+        imageview.cpp
+        imageview.h
 )
+
+include_directories(BEFORE ${PROJECT_SOURCE_DIR})
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(PMIG
@@ -46,10 +50,7 @@ else()
             debug_res.qrc
             basefilter.h basefilter.cpp
             functionalfilters.h
-
-
-
-
+            imageview.h imageview.cpp
         )
     endif()
 
