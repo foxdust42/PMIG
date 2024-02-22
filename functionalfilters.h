@@ -3,10 +3,21 @@
 namespace FunctionalFilters {
 
 class BrightnessCorrectionFilter : public Filters::FunctionalFilter {
+private:
+    class BrightnessDialog : public QDialog {
+        Q_OBJECT
+    public:
+        explicit BrightnessDialog(QWidget *parent) {}
+        static QStringList getStrings(QWidget *parent, bool *ok = nullptr);
+
+    private:
+        QList<QLineEdit*> fields;
+    };
+
 public:
     static const int base_offset = 20;
     BrightnessCorrectionFilter() :
-        FunctionalFilter("Brightness Correction Filter"){}
+        FunctionalFilter("Brightness Correction Filter", true){}
     ~BrightnessCorrectionFilter() {}
 
     void applyFilter(QImage *image, int offset){
@@ -26,6 +37,12 @@ public:
     void applyFilter(QImage *image){
         this->applyFilter(image, base_offset);
     }
+
+    QDialog applyCustom(QImage *image){
+        throw new std::runtime_error("Not Implemented");
+    }
 };
+
+
 
 }
