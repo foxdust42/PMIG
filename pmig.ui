@@ -55,13 +55,13 @@
           </item>
          </layout>
         </widget>
-        <widget class="QWidget" name="tab_2">
+        <widget class="QWidget" name="convolutional">
          <attribute name="title">
-          <string>Tab 2</string>
+          <string>Convolutional</string>
          </attribute>
          <layout class="QFormLayout" name="formLayout_2">
           <item row="0" column="0">
-           <widget class="QListWidget" name="listWidget_2"/>
+           <widget class="QListWidget" name="listWidget_Convolutional"/>
           </item>
          </layout>
         </widget>

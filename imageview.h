@@ -11,6 +11,9 @@ namespace Widgets {
 class ImageView : public QGraphicsView
 {
     Q_OBJECT
+    /*
+    *
+    */
 public:
     ImageView(QWidget *parent = nullptr) : QGraphicsView(parent) {}
     ImageView(QGraphicsScene *scene, QWidget *parent = nullptr) : QGraphicsView(scene, parent) {}
@@ -24,10 +27,17 @@ protected:
     //void paintEvent(QPaintEvent *event) override;
     //void resizeEvent(QResizeEvent *event) override;
 
+    void wheelEvent (QWheelEvent *event) override;
+
+
 private:
     void scream() {
         QTextStream(stdout) << "I scream\n" ;
     }
+
+    void animFinished();
+
+private slots:
 };
 
 } // namespace Widgets

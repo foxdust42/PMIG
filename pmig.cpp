@@ -16,6 +16,8 @@ PMIG::PMIG(QWidget *parent)
     filters.push_back(new Filters::InversionFilter());
     filters.push_back(new FunctionalFilters::BrightnessCorrectionFilter());
 
+    initFilterLists();
+
     //ui->listWidget_Functional->addItem();
 
     //ui->graphicsViewLeft->setScene(&this->original_scene);
@@ -47,10 +49,10 @@ void PMIG::loadImage() {
     modified_image = QImage(image);
     //image = image.scaledToHeight(50);
     this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
-    this->item->setFlag(QGraphicsItem::ItemIsMovable);
+    //this->item->setFlag(QGraphicsItem::ItemIsMovable);
     original_scene->addItem(this->item);
-    text = original_scene->addText("ABCD", QFont("Arial", 20));
-    text->setFlag(QGraphicsItem::ItemIsMovable);
+    //text = original_scene->addText("ABCD", QFont("Arial", 20));
+    //text->setFlag(QGraphicsItem::ItemIsMovable);
 
     loadRightImage();
 
@@ -62,7 +64,7 @@ void PMIG::slot_loadImage(){
 }
 
 void PMIG::slot_listFunctional(QListWidgetItem *item){
-
+    item->data(0x0100);
 }
 
 void PMIG::slot_applyInv(){
@@ -72,7 +74,7 @@ void PMIG::slot_applyInv(){
     }
     //modified_image = QImage(image);
 
-    filters[1]->applyFilter(&modified_image);
+    filters[0]->applyFilter(&modified_image);
 
     loadRightImage();
 
@@ -97,4 +99,33 @@ PMIG::~PMIG()
         delete filters[i];
     }
     delete ui;
+}
+
+void PMIG::initFilterLists(){
+    QListWidgetItem item;
+    //QListWidget *list;
+    for (int i = 0; i < filters.size(); i++){
+
+        switch (filters[i]->getClass()){
+        case Filters::FilterClass::FILTER_FUNCTIONAL:
+            //item = QListWidgetItem(QString(filters[i]->getName())
+            //                       ,ui->listWidget_Functional,
+            //                       QListWidgetItem::UserType);
+            //item.setText(QString(filters[i]->getName()));
+            //ui->listWidget_Functional->addItem(&item);
+            ui->listWidget_Functional->addItem(QString(filters[i]->getName()));
+            ui->listWidget_Functional->addItem(&item);
+            break;
+        case Filters::FilterClass::FILTER_CONVOLUTION:
+            item = QListWidgetItem(QString(filters[i]->getName())
+                                   ,ui->listWidget_Convolutional,
+                                   QListWidgetItem::UserType);
+            break;
+        default:
+            //skip
+            continue;
+            break;
+        }
+        //QTextStream(stdout) << ui->listWidget_Functional->count() << "\n";
+    }
 }

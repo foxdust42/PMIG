@@ -14,17 +14,19 @@ enum FilterClass{
 class BaseFilter //Abstract filter class
 {
 protected:
+    const char * FilterName;
     Filters::FilterClass Fclass;
-    BaseFilter(FilterClass fc);
+    BaseFilter(FilterClass fc, const char *);
 public:
     FilterClass getClass();
+    const char * getName();
     virtual void applyFilter(QImage *image) = 0;
     virtual ~BaseFilter() = 0;
 };
 
 class FunctionalFilter : public BaseFilter {
 public:
-    FunctionalFilter();
+    FunctionalFilter(const char *);
     virtual void applyFilter(QImage *image) = 0;
     virtual ~FunctionalFilter() = 0;
 };
@@ -34,6 +36,7 @@ public:
     InversionFilter();
     ~InversionFilter();
     void applyFilter(QImage *image);
+    void applyFilter(QImage *image, int offset);
 };
 
 } // namespace Filters

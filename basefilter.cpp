@@ -2,18 +2,22 @@
 
 namespace Filters {
 
-BaseFilter::BaseFilter(FilterClass fc) {
+BaseFilter::BaseFilter(FilterClass fc, const char * name) {
     Fclass = fc;
+    FilterName = name;
 }
 BaseFilter::~BaseFilter(){}
 FilterClass BaseFilter::getClass(){
     return Fclass;
 }
+const char * BaseFilter::getName(){
+    return FilterName;
+}
 
-FunctionalFilter::FunctionalFilter() : BaseFilter(FILTER_FUNCTIONAL){}
+FunctionalFilter::FunctionalFilter(const char * name) : BaseFilter(FILTER_FUNCTIONAL, name){}
 FunctionalFilter::~FunctionalFilter() {}
 
-InversionFilter::InversionFilter() : FunctionalFilter() {}
+InversionFilter::InversionFilter() : FunctionalFilter("Inversion Filter") {}
 InversionFilter::~InversionFilter() {}
 
 void InversionFilter::applyFilter(QImage *image){

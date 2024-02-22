@@ -43,6 +43,8 @@ private:
     void loadImage();
     void loadRightImage();
 
+    void initFilterLists();
+
 
 
 };
