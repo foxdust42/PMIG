@@ -30,11 +30,12 @@ private:
     Ui::PMIG *ui;
 
     std::vector<Filters::BaseFilter*> filters;
+    std::vector<QListWidgetItem*> listEntries;
 
     //image display based on https://stackoverflow.com/questions/1357960/qt-jpg-image-display
     QGraphicsScene *original_scene;
     QGraphicsScene *new_scene;
-    QGraphicsTextItem *text;
+    //QGraphicsTextItem *text;
     QImage image;
     QImage modified_image;
     QGraphicsPixmapItem *item;

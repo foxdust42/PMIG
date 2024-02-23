@@ -5,7 +5,7 @@ namespace FunctionalFilters {
 class BrightnessCorrectionFilter : public Filters::FunctionalFilter {
 private:
     class BrightnessDialog : public QDialog {
-        Q_OBJECT
+        //Q_OBJECT
     public:
         explicit BrightnessDialog(QWidget *parent) {}
         static QStringList getStrings(QWidget *parent, bool *ok = nullptr);
@@ -15,7 +15,7 @@ private:
     };
 
 public:
-    static const int base_offset = 20;
+    static const int base_offset = 5;
     BrightnessCorrectionFilter() :
         FunctionalFilter("Brightness Correction Filter", true){}
     ~BrightnessCorrectionFilter() {}

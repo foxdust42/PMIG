@@ -6,6 +6,7 @@
 #include <QGraphicsPixmapItem>
 #include <QDebug>
 #include <QTextStream>
+#include <QFileDialog>
 
 PMIG::PMIG(QWidget *parent)
     : QMainWindow(parent)
@@ -19,14 +20,13 @@ PMIG::PMIG(QWidget *parent)
     initFilterLists();
 
     //ui->listWidget_Functional->addItem();
-
     //ui->graphicsViewLeft->setScene(&this->original_scene);
     QObject::connect(ui->actionOpen, &QAction::triggered,
-                     this, &PMIG::slot_loadImage);
-    QObject::connect(ui->actionApply_Inversion, &QAction::triggered,
-                     this, &PMIG::slot_applyInv);
-    QObject::connect(ui->actionUp_Brightness, &QAction::triggered,
-                     this, &PMIG::slot_applyInv);
+                     this, &PMIG::loadImage);
+    //QObject::connect(ui->actionApply_Inversion, &QAction::triggered,
+    //                 this, &PMIG::slot_applyInv);
+    //QObject::connect(ui->actionUp_Brightness, &QAction::triggered,
+    //                 this, &PMIG::slot_applyInv);
     QObject::connect(ui->listWidget_Functional, &QListWidget::itemDoubleClicked,
                      this, &PMIG::slot_listFunctional);
     //QObject::connect(ui->graphicsViewLeft, &QWidget::)
@@ -37,22 +37,35 @@ PMIG::PMIG(QWidget *parent)
 }
 
 void PMIG::loadImage() {
+    QString fileName =
+        QFileDialog::getOpenFileName(this,
+            tr("Open Image"),
+            "c",
+            tr("Image Files (*.png *.jpg *.bmp)"));
+
+    if (fileName.isNull()){
+        QTextStream(stdout) << "No file selected\n";
+        return;
+    }
+
+    //image = QImage(":/debug/amongkill.jpg");
+
+    image = QImage(fileName);
+
+    if (image.isNull()){
+        QTextStream(stderr) << "Failed to load image";
+        return;
+    }
+
     if (original_scene != NULL) {
         delete original_scene;
     }
     original_scene = new QGraphicsScene(this);
     ui->graphicsViewLeft->setScene(original_scene);
 
-    //QBrush blueBrush(Qt::blue);
-
-    image = QImage(":/debug/amongkill.jpg");
     modified_image = QImage(image);
-    //image = image.scaledToHeight(50);
     this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
-    //this->item->setFlag(QGraphicsItem::ItemIsMovable);
     original_scene->addItem(this->item);
-    //text = original_scene->addText("ABCD", QFont("Arial", 20));
-    //text->setFlag(QGraphicsItem::ItemIsMovable);
 
     loadRightImage();
 
@@ -64,7 +77,13 @@ void PMIG::slot_loadImage(){
 }
 
 void PMIG::slot_listFunctional(QListWidgetItem *item){
-    item->data(0x0100);
+    int filter_index = item->data(Qt::UserRole + 0x1).toInt();
+    if (modified_image.isNull()){
+        QTextStream(stdout) << "No Image found";
+        return;
+    }
+    filters[filter_index]->applyFilter(&modified_image);
+    loadRightImage();
 }
 
 void PMIG::slot_applyInv(){
@@ -98,34 +117,38 @@ PMIG::~PMIG()
     for (int i=0; i<filters.size(); i++){
         delete filters[i];
     }
+    for (int i=0; i<listEntries.size(); i++){
+        delete listEntries[i];
+    }
     delete ui;
 }
 
 void PMIG::initFilterLists(){
-    QListWidgetItem item;
+    QListWidgetItem *item;
     //QListWidget *list;
     for (int i = 0; i < filters.size(); i++){
-
         switch (filters[i]->getClass()){
         case Filters::FilterClass::FILTER_FUNCTIONAL:
-            //item = QListWidgetItem(QString(filters[i]->getName())
-            //                       ,ui->listWidget_Functional,
-            //                       QListWidgetItem::UserType);
-            //item.setText(QString(filters[i]->getName()));
-            //ui->listWidget_Functional->addItem(&item);
-            ui->listWidget_Functional->addItem(QString(filters[i]->getName()));
-            ui->listWidget_Functional->addItem(&item);
+            item = new QListWidgetItem(QString(filters[i]->getName()),
+                                       ui->listWidget_Functional,
+                                       QListWidgetItem::ItemType::UserType);
+            //ui->listWidget_Functional->addItem(QString(filters[i]->getName()));
+            item->setData(Qt::UserRole + 0x1, QVariant(i));
+            ui->listWidget_Functional->addItem(item);
             break;
         case Filters::FilterClass::FILTER_CONVOLUTION:
-            item = QListWidgetItem(QString(filters[i]->getName())
-                                   ,ui->listWidget_Convolutional,
-                                   QListWidgetItem::UserType);
+            item = new QListWidgetItem(QString(filters[i]->getName()),
+                                       ui->listWidget_Convolutional,
+                                       QListWidgetItem::ItemType::UserType);
+            item->setData(Qt::UserRole + 0x1, QVariant(i));
+            ui->listWidget_Convolutional->addItem(item);
             break;
         default:
             //skip
             continue;
             break;
         }
+        listEntries.push_back(item);
         //QTextStream(stdout) << ui->listWidget_Functional->count() << "\n";
     }
 }
