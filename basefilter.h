@@ -24,7 +24,7 @@ public:
     FilterClass getClass();
     const char * getName();
     virtual void applyFilter(QImage *image) = 0;
-    virtual QDialog applyCustom(QImage * image) = 0;
+    //virtual QDialog applyCustom(QImage * image) = 0;
     virtual ~BaseFilter() = 0;
 };
 
@@ -32,7 +32,7 @@ class FunctionalFilter : public BaseFilter {
 public:
     FunctionalFilter(const char *, bool is_customisable);
     virtual void applyFilter(QImage *image) = 0;
-    virtual QDialog applyCustom(QImage *image) = 0;
+    //virtual QDialog applyCustom(QImage *image) = 0;
     virtual ~FunctionalFilter() = 0;
 };
 
@@ -46,6 +46,18 @@ public:
     void applyFilter(QImage *image);
     void applyFilter(QImage *image, int offset);
     QDialog applyCustom(QImage *image);
+};
+
+class ConvolutionFilter : public BaseFilter {
+protected:
+    int m_height;
+    int m_width;
+    int **matrix;
+public:
+    ConvolutionFilter(const char * name, bool is_customisable) :
+        BaseFilter(FILTER_CONVOLUTION, name, is_customisable) {}
+    virtual ~ConvolutionFilter() = 0;
+    virtual void applyFilter(QImage *image) = 0;
 };
 
 } // namespace Filters

@@ -17,6 +17,9 @@ const char * BaseFilter::getName(){
 FunctionalFilter::FunctionalFilter(const char * name, bool is_customisable) : BaseFilter(FILTER_FUNCTIONAL, name, is_customisable){}
 FunctionalFilter::~FunctionalFilter() {}
 
+
+
+////
 InversionFilter::InversionFilter() : FunctionalFilter("Inversion Filter", false) {}
 InversionFilter::~InversionFilter() {}
 

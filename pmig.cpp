@@ -16,17 +16,18 @@ PMIG::PMIG(QWidget *parent)
 
     filters.push_back(new Filters::InversionFilter());
     filters.push_back(new FunctionalFilters::BrightnessCorrectionFilter());
+    filters.push_back(new FunctionalFilters::ContrastEnchancementFilter());
+    filters.push_back(new FunctionalFilters::GammaCorectionFilter());
 
     initFilterLists();
+
+    original_scene = new QGraphicsScene(this);
+    new_scene = new QGraphicsScene(this);
 
     //ui->listWidget_Functional->addItem();
     //ui->graphicsViewLeft->setScene(&this->original_scene);
     QObject::connect(ui->actionOpen, &QAction::triggered,
                      this, &PMIG::loadImage);
-    //QObject::connect(ui->actionApply_Inversion, &QAction::triggered,
-    //                 this, &PMIG::slot_applyInv);
-    //QObject::connect(ui->actionUp_Brightness, &QAction::triggered,
-    //                 this, &PMIG::slot_applyInv);
     QObject::connect(ui->listWidget_Functional, &QListWidget::itemDoubleClicked,
                      this, &PMIG::slot_listFunctional);
     //QObject::connect(ui->graphicsViewLeft, &QWidget::)
@@ -57,10 +58,9 @@ void PMIG::loadImage() {
         return;
     }
 
-    if (original_scene != NULL) {
-        delete original_scene;
-    }
-    original_scene = new QGraphicsScene(this);
+
+    original_scene->clear();
+    //original_scene = new QGraphicsScene(this);
     ui->graphicsViewLeft->setScene(original_scene);
 
     modified_image = QImage(image);
@@ -79,9 +79,10 @@ void PMIG::slot_loadImage(){
 void PMIG::slot_listFunctional(QListWidgetItem *item){
     int filter_index = item->data(Qt::UserRole + 0x1).toInt();
     if (modified_image.isNull()){
-        QTextStream(stdout) << "No Image found";
+        QTextStream(stdout) << "No Image found\n";
         return;
     }
+    QTextStream(stdout) << filters[filter_index]->getName() << "\n";
     filters[filter_index]->applyFilter(&modified_image);
     loadRightImage();
 }
@@ -102,9 +103,7 @@ void PMIG::slot_applyInv(){
 }
 
 void PMIG::loadRightImage(){
-    if (new_scene != NULL){
-        delete new_scene;
-    }
+    new_scene->clear();
     modified_item = new QGraphicsPixmapItem(QPixmap::fromImage(modified_image));
     new_scene = new QGraphicsScene(this);
     new_scene->addItem(modified_item);
@@ -120,6 +119,8 @@ PMIG::~PMIG()
     for (int i=0; i<listEntries.size(); i++){
         delete listEntries[i];
     }
+    delete original_scene;
+    delete new_scene;
     delete ui;
 }
 

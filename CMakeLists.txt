@@ -51,6 +51,7 @@ else()
             basefilter.h basefilter.cpp
             functionalfilters.h
             imageview.h imageview.cpp
+            convolutionfilters.h
         )
     endif()
 
