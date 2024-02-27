@@ -52,6 +52,7 @@ else()
             functionalfilters.h
             imageview.h imageview.cpp
             convolutionfilters.h
+            customconvfiltertable.h customconvfiltertable.cpp
         )
     endif()
 

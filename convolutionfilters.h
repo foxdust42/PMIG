@@ -42,7 +42,7 @@ public:
         m_height = 5;
         m_width = 5;
         //Indexing from 0
-        anchor = QPoint(1,1);
+        anchor = QPoint(2,2);
         double sigma = 0.85;
         /*
          *  For 3x3:

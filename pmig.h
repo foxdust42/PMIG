@@ -25,9 +25,12 @@ public slots:
     void slot_loadImage();
     void slot_listDClick(QListWidgetItem *item);
     void slot_resetImage();
+    void slot_saveImage();
 
 private:
     Ui::PMIG *ui;
+
+    QBrush highlight = QBrush(QColor(qRgb(200,0,0)));
 
     std::vector<Filters::BaseFilter*> filters;
     std::vector<QListWidgetItem*> listEntries;
@@ -40,6 +43,9 @@ private:
     QImage modified_image;
     QGraphicsPixmapItem *item;
     QGraphicsPixmapItem *modified_item;
+
+    void initCustomConv();
+    void deleteCustomConv();
 
     void loadImage();
     void loadRightImage();

@@ -7,7 +7,7 @@ namespace Widgets {
 //ImageView::ImageView() {}
 void ImageView::mousePressEvent(QMouseEvent *event){
     QGraphicsView::mousePressEvent(event);
-    this->scream();
+    //this->scream();
 }
 
 void ImageView::wheelEvent(QWheelEvent *event) {

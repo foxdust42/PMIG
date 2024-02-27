@@ -31,11 +31,6 @@ protected:
 
 
 private:
-    void scream() {
-        QTextStream(stdout) << "I scream\n" ;
-    }
-
-    void animFinished();
 
 private slots:
 };
