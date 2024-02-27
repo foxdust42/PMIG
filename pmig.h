@@ -23,8 +23,8 @@ public:
 
 public slots:
     void slot_loadImage();
-    void slot_applyInv();
-    void slot_listFunctional(QListWidgetItem *item);
+    void slot_listDClick(QListWidgetItem *item);
+    void slot_resetImage();
 
 private:
     Ui::PMIG *ui;
@@ -45,7 +45,6 @@ private:
     void loadRightImage();
 
     void initFilterLists();
-
 
 
 };

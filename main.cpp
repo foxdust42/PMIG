@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
+#include <QScreen>
+#include <QDesktopWidget>
 
 int main(int argc, char *argv[])
 {
@@ -19,8 +21,7 @@ int main(int argc, char *argv[])
     }
     PMIG w;
 
-
-
     w.show();
+
     return a.exec();
 }

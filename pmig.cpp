@@ -2,11 +2,13 @@
 #include "./ui_pmig.h"
 #include "basefilter.h"
 #include "functionalfilters.h"
+#include "convolutionfilters.h"
 
 #include <QGraphicsPixmapItem>
 #include <QDebug>
 #include <QTextStream>
 #include <QFileDialog>
+#include <qscreen.h>
 
 PMIG::PMIG(QWidget *parent)
     : QMainWindow(parent)
@@ -18,19 +20,22 @@ PMIG::PMIG(QWidget *parent)
     filters.push_back(new FunctionalFilters::BrightnessCorrectionFilter());
     filters.push_back(new FunctionalFilters::ContrastEnchancementFilter());
     filters.push_back(new FunctionalFilters::GammaCorectionFilter());
+    filters.push_back(new ConvolutionFilters::BlurFilter());
+    filters.push_back(new ConvolutionFilters::GaussBlurFilter());
 
     initFilterLists();
 
     original_scene = new QGraphicsScene(this);
     new_scene = new QGraphicsScene(this);
 
-    //ui->listWidget_Functional->addItem();
-    //ui->graphicsViewLeft->setScene(&this->original_scene);
     QObject::connect(ui->actionOpen, &QAction::triggered,
                      this, &PMIG::loadImage);
     QObject::connect(ui->listWidget_Functional, &QListWidget::itemDoubleClicked,
-                     this, &PMIG::slot_listFunctional);
-    //QObject::connect(ui->graphicsViewLeft, &QWidget::)
+                     this, &PMIG::slot_listDClick);
+    QObject::connect(ui->listWidget_Convolutional, &QListWidget::itemDoubleClicked,
+                     this, &PMIG::slot_listDClick);
+    QObject::connect(ui->actionReset_Image, &QAction::triggered,
+                     this, &PMIG::slot_resetImage);
 
     QTextStream(stdout) << "Setup Done\n" ;
 
@@ -49,8 +54,6 @@ void PMIG::loadImage() {
         return;
     }
 
-    //image = QImage(":/debug/amongkill.jpg");
-
     image = QImage(fileName);
 
     if (image.isNull()){
@@ -65,6 +68,7 @@ void PMIG::loadImage() {
 
     modified_image = QImage(image);
     this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
+    this->item->setFlag(QGraphicsItem::ItemIsMovable);
     original_scene->addItem(this->item);
 
     loadRightImage();
@@ -76,7 +80,16 @@ void PMIG::slot_loadImage(){
     QTextStream(stdout) << "AAABBB\n";
 }
 
-void PMIG::slot_listFunctional(QListWidgetItem *item){
+void PMIG::slot_resetImage(){
+    if (this->image.isNull()){
+        QTextStream(stdout) << "Nothing to reset\n";
+        return;
+    }
+    modified_image = QImage(image);
+    this->loadRightImage();
+}
+
+void PMIG::slot_listDClick(QListWidgetItem *item){
     int filter_index = item->data(Qt::UserRole + 0x1).toInt();
     if (modified_image.isNull()){
         QTextStream(stdout) << "No Image found\n";
@@ -87,20 +100,6 @@ void PMIG::slot_listFunctional(QListWidgetItem *item){
     loadRightImage();
 }
 
-void PMIG::slot_applyInv(){
-    if (modified_image.isNull()) {
-        QTextStream(stdout) << "Nothing to invert\n";
-        return;
-    }
-    //modified_image = QImage(image);
-
-    filters[0]->applyFilter(&modified_image);
-
-    loadRightImage();
-
-    QTextStream(stdout) << "Inv\n";
-
-}
 
 void PMIG::loadRightImage(){
     new_scene->clear();

@@ -36,6 +36,8 @@ public:
     virtual ~FunctionalFilter() = 0;
 };
 
+
+////
 class InversionFilter : public FunctionalFilter {
 private:
     //https://stackoverflow.com/questions/17512542/getting-multiple-inputs-from-qinputdialog-in-qt
@@ -47,17 +49,26 @@ public:
     void applyFilter(QImage *image, int offset);
     QDialog applyCustom(QImage *image);
 };
+////
 
 class ConvolutionFilter : public BaseFilter {
 protected:
     int m_height;
     int m_width;
     int **matrix;
+    QPoint anchor;
+
+    QRgb apply_matrix(QImage *image, int x, int y);
+    int** generateMatrix();
+    void destroyMatrix();
+
 public:
-    ConvolutionFilter(const char * name, bool is_customisable) :
-        BaseFilter(FILTER_CONVOLUTION, name, is_customisable) {}
+    ConvolutionFilter(const char * name) :
+        BaseFilter(FILTER_CONVOLUTION, name, true) {}
     virtual ~ConvolutionFilter() = 0;
-    virtual void applyFilter(QImage *image) = 0;
+    void applyFilter(QImage *image);
+
+
 };
 
 } // namespace Filters
