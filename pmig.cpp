@@ -22,6 +22,9 @@ PMIG::PMIG(QWidget *parent)
     filters.push_back(new FunctionalFilters::GammaCorectionFilter());
     filters.push_back(new ConvolutionFilters::BlurFilter());
     filters.push_back(new ConvolutionFilters::GaussBlurFilter());
+    filters.push_back(new ConvolutionFilters::SharpenFilter());
+    filters.push_back(new ConvolutionFilters::EdgeDetectionDiag());
+    filters.push_back(new ConvolutionFilters::SouthEmoss());
 
     initFilterLists();
 
