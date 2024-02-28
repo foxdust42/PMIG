@@ -27,15 +27,14 @@ void ConvolutionFilter::applyFilter(QImage *image){
     for (int i=0; i<new_image.height(); i++){
         row = (QRgb*)new_image.scanLine(i);
         for (int j=0; j<new_image.width(); j++){
-            row[j] = apply_matrix(image, i, j);
+            row[j] = apply_matrix(image, divisor, i, j);
         }
     }
     *image = new_image;
 }
 
-QRgb ConvolutionFilter::apply_matrix(QImage *image, int x, int y){
+QRgb ConvolutionFilter::apply_matrix(QImage *image, int divisor, int x, int y){
     int r=0, g=0, b=0;
-    int sum=0;
     //int xt, yt;
     x -= anchor.x();
     y -= anchor.y();
@@ -44,18 +43,14 @@ QRgb ConvolutionFilter::apply_matrix(QImage *image, int x, int y){
         for (int j=0; j<m_width; j++){
             c = image->pixelColor(std::max(std::min(y + i, image->width()),0),
                                   std::max(std::min(x + j, image->height()), 0));
-            sum += matrix[i][j];
             r += c.red()*matrix[i][j];
             g += c.green()*matrix[i][j];
             b += c.blue()*matrix[i][j];
         }
     }
-    if (sum == 0){
-        sum = 1;
-    }
-    r /= sum;
-    g /= sum;
-    b /= sum;
+    r /= divisor;
+    g /= divisor;
+    b /= divisor;
     return qRgb(r, g, b);
 }
 

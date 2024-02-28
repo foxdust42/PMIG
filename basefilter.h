@@ -56,9 +56,10 @@ protected:
     int m_height;
     int m_width;
     int **matrix;
+    int divisor;
     QPoint anchor;
 
-    QRgb apply_matrix(QImage *image, int x, int y);
+    QRgb apply_matrix(QImage *image, int divisor, int x, int y);
     int** generateMatrix();
     void destroyMatrix();
 

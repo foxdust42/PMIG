@@ -17,7 +17,7 @@ PMIG::PMIG(QWidget *parent)
 {
     ui->setupUi(this);
 
-    ui->doubleSpinBox->setDecimals(8);
+    //ui->doubleSpinBox->setDecimals(8);
 
     filters.push_back(new Filters::InversionFilter());
     filters.push_back(new FunctionalFilters::BrightnessCorrectionFilter());
@@ -212,10 +212,15 @@ void PMIG::initFilterLists(){
 }
 
 void PMIG::initCustomConv(){
-    ui->customConvTable->setRowCount(10);
-    ui->customConvTable->setColumnCount(10);
+    ui->customConvTable->setRowCount(3);
+    ui->customConvTable->setColumnCount(3);
     ui->customConvTable->verticalHeader()->setDefaultSectionSize(1);
     ui->customConvTable->horizontalHeader()->setDefaultSectionSize(1);
+
+    QTextStream(stdout) << ui->customConvTable->styleSheet() << "\n";
+
+    //ui->customConvTable->setStyleSheet("");
+
     QTableWidgetItem* tableItem;
     for (int i=0; i<ui->customConvTable->rowCount(); i++){
         for (int j=0; j<ui->customConvTable->columnCount(); j++){
@@ -224,7 +229,8 @@ void PMIG::initCustomConv(){
         }
     }
 
-    ui->customConvTable->item(1,1)->setBackground(this->highlight);
+    ui->customConvTable->setAnchor(1, 1);
+    //ui->customConvTable->item(1,1)->setBackground(this->highlight);
 
     ui->customConvTable->update();
 }

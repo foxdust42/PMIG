@@ -10,8 +10,8 @@ namespace ConvolutionFilters {
 class BlurFilter : public Filters::ConvolutionFilter {
 public:
     BlurFilter() : Filters::ConvolutionFilter("Blur Filter") {
-        m_height = 3;
-        m_width = 3;
+        m_height = 5;
+        m_width = 5;
         anchor = QPoint(1,1);
         matrix = this->generateMatrix();
         for (int i=0; i<m_height; i++){
@@ -19,6 +19,7 @@ public:
                 matrix[i][j] = 1;
             }
         }
+        this->divisor = m_height * m_width;
     }
     ~BlurFilter() {
         this->destroyMatrix();
@@ -51,6 +52,7 @@ public:
          *  For 5x5:
          *  sigma = 0.85
         */
+        int div = 0;
         double correction_factor = 0.0;
         double ** tmp_matrix = new double*[m_height];
         for (int i=0; i<m_height; i++){
@@ -76,6 +78,7 @@ public:
         for (int i=0; i<m_height; i++){
             for (int j=0; j<m_width; j++){
                 matrix[i][j] = (int)std::round(tmp_matrix[i][j] * correction_factor);
+                div += matrix[i][j];
                 //QTextStream(stdout) << matrix[i][j] << "    ";
                 //QTextStream(stdout) << "(" << j << " " << i << "): " << tmp_matrix[i][j] << " -> " << tmp_matrix[i][j]*correction_factor << " -> " << matrix[i][j] << "\n";
             }
@@ -86,6 +89,12 @@ public:
             delete[] tmp_matrix[i];
         }
         delete[] tmp_matrix;
+        if (div == 0){
+            this->divisor = 1;
+        }
+        else {
+            this->divisor = div;
+        }
     }
 
     ~GaussBlurFilter(){
@@ -101,6 +110,7 @@ public:
         anchor = QPoint(1,1);
         int a = 1;
         int b = 5;
+        int sum = 0;
 
 
         matrix = this->generateMatrix();
@@ -117,7 +127,14 @@ public:
                 else {
                     matrix[i][j] = 0;
                 }
+                sum += matrix[i][j];
             }
+        }
+        if (sum == 0){
+            this->divisor = 1;
+        }
+        else{
+            this->divisor = sum;
         }
     }
     ~SharpenFilter(){
@@ -132,6 +149,8 @@ public:
         m_width = 3;
         anchor = QPoint(1,1);
         matrix = this->generateMatrix();
+
+        this->divisor = 1;
 
         for (int i=0; i<m_height; i++){
             for (int j=0; j<m_width; j++){
@@ -152,8 +171,10 @@ public:
     SouthEmoss() : Filters::ConvolutionFilter("South Emboss"){
         m_height = 3;
         m_width = 3;
-        anchor = QPoint(1,1);
+        anchor = QPoint(1,1);        
         matrix = this->generateMatrix();
+
+        this->divisor = 1;
         for (int i=0; i<m_height; i++){
             for (int j=0; j<m_width; j++){
                 matrix[i][j] = i-1;

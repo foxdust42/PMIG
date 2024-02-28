@@ -30,7 +30,7 @@ public slots:
 private:
     Ui::PMIG *ui;
 
-    QBrush highlight = QBrush(QColor(qRgb(200,0,0)));
+    //QBrush highlight = QBrush(QColor(qRgb(200,0,0)));
 
     std::vector<Filters::BaseFilter*> filters;
     std::vector<QListWidgetItem*> listEntries;
