@@ -24,7 +24,11 @@ public:
 
     void mousePressEvent (QMouseEvent *event) override;
 
-    void setAnchor(int row, int column);
+    void setAnchor(int row, int column, bool reset = false);
+
+    void setSize(int rows, int columns);
+
+    int calcDivisor();
 };
 
 } // namespace CustomFilterWidget

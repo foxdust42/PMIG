@@ -31,7 +31,7 @@ PMIG::PMIG(QWidget *parent)
 
     initFilterLists();
 
-    initCustomConv();
+    initCustomConv(3, 3);
 
     original_scene = new QGraphicsScene(this);
     new_scene = new QGraphicsScene(this);
@@ -46,6 +46,15 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_listDClick);
     QObject::connect(ui->actionReset_Image, &QAction::triggered,
                      this, &PMIG::slot_resetImage);
+
+    //
+
+    QObject::connect(ui->pushButton_ApplySize, &QAbstractButton::clicked,
+                     this, &PMIG::slot_setCustomConv);
+    QObject::connect(ui->pushButton_CalcDivisor, &QAbstractButton::clicked,
+                     this, &PMIG::slot_calcDivisor);
+
+    //
 
     QTextStream(stdout) << "Setup Done\n" ;
 
@@ -211,9 +220,9 @@ void PMIG::initFilterLists(){
     }
 }
 
-void PMIG::initCustomConv(){
-    ui->customConvTable->setRowCount(3);
-    ui->customConvTable->setColumnCount(3);
+void PMIG::initCustomConv(int rows, int columns){
+    ui->customConvTable->setRowCount(rows);
+    ui->customConvTable->setColumnCount(columns);
     ui->customConvTable->verticalHeader()->setDefaultSectionSize(1);
     ui->customConvTable->horizontalHeader()->setDefaultSectionSize(1);
 
@@ -229,7 +238,7 @@ void PMIG::initCustomConv(){
         }
     }
 
-    ui->customConvTable->setAnchor(1, 1);
+    ui->customConvTable->setAnchor(rows/2, columns/2, true);
     //ui->customConvTable->item(1,1)->setBackground(this->highlight);
 
     ui->customConvTable->update();
@@ -241,4 +250,19 @@ void PMIG::deleteCustomConv(){
             delete ui->customConvTable->item(i,j);
         }
     }
+}
+
+void PMIG::slot_setCustomConv(){
+    int rows = this->ui->spinBox_Height->value();
+    int columns = this->ui->spinBox_Width->value();
+
+    this->deleteCustomConv();
+    this->initCustomConv(rows, columns);
+}
+
+
+void PMIG::slot_calcDivisor(){
+    int divisor = ui->customConvTable->calcDivisor();
+
+    ui->spinBox_Divisor->setValue(divisor);
 }

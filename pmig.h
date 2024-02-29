@@ -26,6 +26,8 @@ public slots:
     void slot_listDClick(QListWidgetItem *item);
     void slot_resetImage();
     void slot_saveImage();
+    void slot_setCustomConv();
+    void slot_calcDivisor();
 
 private:
     Ui::PMIG *ui;
@@ -44,7 +46,7 @@ private:
     QGraphicsPixmapItem *item;
     QGraphicsPixmapItem *modified_item;
 
-    void initCustomConv();
+    void initCustomConv(int rows, int columns);
     void deleteCustomConv();
 
     void loadImage();
