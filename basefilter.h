@@ -16,13 +16,13 @@ enum FilterClass{
 class BaseFilter //Abstract filter class
 {
 protected:
-    const char * FilterName;
+    QString FilterName;
     Filters::FilterClass Fclass;
     bool is_customisable;
-    BaseFilter(FilterClass fc, const char *, bool is_customisable);
+    BaseFilter(FilterClass fc, QString, bool is_customisable);
 public:
     FilterClass getClass();
-    const char * getName();
+    QString getName();
     virtual void applyFilter(QImage *image) = 0;
     //virtual QDialog applyCustom(QImage * image) = 0;
     virtual ~BaseFilter() = 0;
@@ -30,7 +30,7 @@ public:
 
 class FunctionalFilter : public BaseFilter {
 public:
-    FunctionalFilter(const char *, bool is_customisable);
+    FunctionalFilter(QString, bool is_customisable);
     virtual void applyFilter(QImage *image) = 0;
     //virtual QDialog applyCustom(QImage *image) = 0;
     virtual ~FunctionalFilter() = 0;
@@ -57,14 +57,17 @@ protected:
     int m_width;
     int **matrix;
     int divisor;
+    int offset = 0;
     QPoint anchor;
 
     QRgb apply_matrix(QImage *image, int divisor, int x, int y);
     int** generateMatrix();
     void destroyMatrix();
 
+    int clamp(int val);
+
 public:
-    ConvolutionFilter(const char * name) :
+    ConvolutionFilter(QString name) :
         BaseFilter(FILTER_CONVOLUTION, name, true) {}
     virtual ~ConvolutionFilter() = 0;
     void applyFilter(QImage *image);

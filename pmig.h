@@ -28,6 +28,7 @@ public slots:
     void slot_saveImage();
     void slot_setCustomConv();
     void slot_calcDivisor();
+    void slot_saveCustom();
 
 private:
     Ui::PMIG *ui;
@@ -46,13 +47,14 @@ private:
     QGraphicsPixmapItem *item;
     QGraphicsPixmapItem *modified_item;
 
-    void initCustomConv(int rows, int columns);
-    void deleteCustomConv();
+    //void initCustomConv(int rows, int columns);
+    //void deleteCustomConv();
 
     void loadImage();
     void loadRightImage();
 
     void initFilterLists();
+    void pushFilter(Filters::BaseFilter *filter, int ind);
 
 
 };

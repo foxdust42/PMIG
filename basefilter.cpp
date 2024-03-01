@@ -2,7 +2,7 @@
 
 namespace Filters {
 
-BaseFilter::BaseFilter(FilterClass fc, const char * name, bool is_customisable) {
+BaseFilter::BaseFilter(FilterClass fc, QString name, bool is_customisable) {
     Fclass = fc;
     FilterName = name;
 }
@@ -10,11 +10,11 @@ BaseFilter::~BaseFilter(){}
 FilterClass BaseFilter::getClass(){
     return Fclass;
 }
-const char * BaseFilter::getName(){
+QString BaseFilter::getName(){
     return FilterName;
 }
 
-FunctionalFilter::FunctionalFilter(const char * name, bool is_customisable) : BaseFilter(FILTER_FUNCTIONAL, name, is_customisable){}
+FunctionalFilter::FunctionalFilter(QString name, bool is_customisable) : BaseFilter(FILTER_FUNCTIONAL, name, is_customisable){}
 FunctionalFilter::~FunctionalFilter() {}
 
 ConvolutionFilter::~ConvolutionFilter(){}
@@ -51,6 +51,9 @@ QRgb ConvolutionFilter::apply_matrix(QImage *image, int divisor, int x, int y){
     r /= divisor;
     g /= divisor;
     b /= divisor;
+    r = clamp(r + this->offset);
+    g = clamp(g + this->offset);
+    b = clamp(b + this->offset);
     return qRgb(r, g, b);
 }
 
@@ -67,6 +70,10 @@ void ConvolutionFilter::destroyMatrix(){
         delete[] matrix[i];
     }
     delete[] matrix;
+}
+
+int ConvolutionFilter::clamp(int val){
+    return std::min(std::max(val, 0), 255);
 }
 
 ////

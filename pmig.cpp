@@ -3,6 +3,7 @@
 #include "basefilter.h"
 #include "functionalfilters.h"
 #include "convolutionfilters.h"
+#include "customconvfiltertable.h"
 
 #include <QGraphicsPixmapItem>
 #include <QDebug>
@@ -31,7 +32,9 @@ PMIG::PMIG(QWidget *parent)
 
     initFilterLists();
 
-    initCustomConv(3, 3);
+    //ui->customConvTable->set
+
+    ui->customConvTable->init(3, 3);
 
     original_scene = new QGraphicsScene(this);
     new_scene = new QGraphicsScene(this);
@@ -53,6 +56,8 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_setCustomConv);
     QObject::connect(ui->pushButton_CalcDivisor, &QAbstractButton::clicked,
                      this, &PMIG::slot_calcDivisor);
+    QObject::connect(ui->pushButton_Save, &QAbstractButton::clicked,
+                     this, &PMIG::slot_saveCustom);
 
     //
 
@@ -184,80 +189,50 @@ PMIG::~PMIG()
     for (int i=0; i<listEntries.size(); i++){
         delete listEntries[i];
     }
-    this->deleteCustomConv();
     delete original_scene;
     delete new_scene;
     delete ui;
 }
 
 void PMIG::initFilterLists(){
-    QListWidgetItem *item;
     //QListWidget *list;
     for (int i = 0; i < filters.size(); i++){
-        switch (filters[i]->getClass()){
-        case Filters::FilterClass::FILTER_FUNCTIONAL:
-            item = new QListWidgetItem(QString(filters[i]->getName()),
-                                       ui->listWidget_Functional,
-                                       QListWidgetItem::ItemType::UserType);
-            //ui->listWidget_Functional->addItem(QString(filters[i]->getName()));
-            item->setData(Qt::UserRole + 0x1, QVariant(i));
-            ui->listWidget_Functional->addItem(item);
-            break;
-        case Filters::FilterClass::FILTER_CONVOLUTION:
-            item = new QListWidgetItem(QString(filters[i]->getName()),
-                                       ui->listWidget_Convolutional,
-                                       QListWidgetItem::ItemType::UserType);
-            item->setData(Qt::UserRole + 0x1, QVariant(i));
-            ui->listWidget_Convolutional->addItem(item);
-            break;
-        default:
-            //skip
-            continue;
-            break;
-        }
-        listEntries.push_back(item);
+        pushFilter(filters[i], i);
         //QTextStream(stdout) << ui->listWidget_Functional->count() << "\n";
     }
 }
 
-void PMIG::initCustomConv(int rows, int columns){
-    ui->customConvTable->setRowCount(rows);
-    ui->customConvTable->setColumnCount(columns);
-    ui->customConvTable->verticalHeader()->setDefaultSectionSize(1);
-    ui->customConvTable->horizontalHeader()->setDefaultSectionSize(1);
-
-    QTextStream(stdout) << ui->customConvTable->styleSheet() << "\n";
-
-    //ui->customConvTable->setStyleSheet("");
-
-    QTableWidgetItem* tableItem;
-    for (int i=0; i<ui->customConvTable->rowCount(); i++){
-        for (int j=0; j<ui->customConvTable->columnCount(); j++){
-            tableItem = new QTableWidgetItem(tr("%1").arg((i+1)*(j+1)));
-            ui->customConvTable->setItem(i, j, tableItem);
-        }
+void PMIG::pushFilter(Filters::BaseFilter *filter, int ind){
+    QListWidgetItem *item;
+    switch (filter->getClass()){
+    case Filters::FilterClass::FILTER_FUNCTIONAL:
+        item = new QListWidgetItem(QString(filter->getName()),
+                                   ui->listWidget_Functional,
+                                   QListWidgetItem::ItemType::UserType);
+        //ui->listWidget_Functional->addItem(QString(filters[i]->getName()));
+        item->setData(Qt::UserRole + 0x1, QVariant(ind));
+        this->ui->listWidget_Functional->addItem(item);
+        break;
+    case Filters::FilterClass::FILTER_CONVOLUTION:
+        item = new QListWidgetItem(QString(filter->getName()),
+                                   ui->listWidget_Convolutional,
+                                   QListWidgetItem::ItemType::UserType);
+        item->setData(Qt::UserRole + 0x1, QVariant(ind));
+        this->ui->listWidget_Convolutional->addItem(item);
+        break;
+    default:
+        throw new std::invalid_argument("Unknown filter type");
+        break;
     }
-
-    ui->customConvTable->setAnchor(rows/2, columns/2, true);
-    //ui->customConvTable->item(1,1)->setBackground(this->highlight);
-
-    ui->customConvTable->update();
-}
-
-void PMIG::deleteCustomConv(){
-    for (int i=0; i<ui->customConvTable->rowCount(); i++){
-        for (int j=0; j<ui->customConvTable->columnCount(); j++){
-            delete ui->customConvTable->item(i,j);
-        }
-    }
+    listEntries.push_back(item);
 }
 
 void PMIG::slot_setCustomConv(){
     int rows = this->ui->spinBox_Height->value();
     int columns = this->ui->spinBox_Width->value();
 
-    this->deleteCustomConv();
-    this->initCustomConv(rows, columns);
+    ui->customConvTable->del();
+    ui->customConvTable->init(rows, columns);
 }
 
 
@@ -265,4 +240,30 @@ void PMIG::slot_calcDivisor(){
     int divisor = ui->customConvTable->calcDivisor();
 
     ui->spinBox_Divisor->setValue(divisor);
+}
+
+void PMIG::slot_saveCustom(){
+    int divisor = ui->spinBox_Divisor->value();
+    if (divisor == 0){
+        QTextStream(stdout) << "Division By 0\n";
+        QMessageBox msg;
+        msg.setWindowTitle("Filter error");
+        msg.setIcon(QMessageBox::Critical);
+        msg.setText("Failed to make filter : division by 0");
+        msg.setInformativeText("Please refrain from dividing by 0");
+        msg.exec();
+        return;
+    }
+    int offset = ui->spinBox_Offset->value();
+    QString name = "C | " + ui->lineEdit_FilterName->text();
+    std::vector<int> matrix = ui->customConvTable->collectMatrix();
+    QPoint anchor = ui->customConvTable->collectAnchor();
+    int height = ui->customConvTable->rowCount();
+    int width = ui->customConvTable->columnCount();
+
+    filters.push_back(new ConvolutionFilters::CustomConvolution(name,
+                        height, width, anchor, divisor, offset, matrix));
+
+    this->pushFilter(filters[filters.size()-1], filters.size()-1);
+
 }

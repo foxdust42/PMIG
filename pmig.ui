@@ -50,6 +50,9 @@
           <string>Convolutional</string>
          </attribute>
          <layout class="QFormLayout" name="formLayout_2">
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
           <item row="0" column="0">
            <widget class="QListWidget" name="listWidget_Convolutional"/>
           </item>
@@ -100,7 +103,17 @@
                </property>
                <layout class="QGridLayout" name="gridLayout_4">
                 <item row="2" column="1">
-                 <widget class="QSpinBox" name="spinBox_Offset"/>
+                 <widget class="QSpinBox" name="spinBox_Offset">
+                  <property name="minimum">
+                   <number>-255</number>
+                  </property>
+                  <property name="maximum">
+                   <number>255</number>
+                  </property>
+                  <property name="singleStep">
+                   <number>1</number>
+                  </property>
+                 </widget>
                 </item>
                 <item row="3" column="0">
                  <widget class="QLabel" name="label_3">

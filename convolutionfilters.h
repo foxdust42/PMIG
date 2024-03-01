@@ -12,7 +12,7 @@ public:
     BlurFilter() : Filters::ConvolutionFilter("Blur Filter") {
         m_height = 5;
         m_width = 5;
-        anchor = QPoint(1,1);
+        anchor = QPoint(2,2);
         matrix = this->generateMatrix();
         for (int i=0; i<m_height; i++){
             for (int j=0; j<m_width; j++){
@@ -177,12 +177,45 @@ public:
         this->divisor = 1;
         for (int i=0; i<m_height; i++){
             for (int j=0; j<m_width; j++){
-                matrix[i][j] = i-1;
+                matrix[i][j] = j-1;
             }
         }
         matrix[1][1] = 1;
     }
     ~SouthEmoss(){
+        this->destroyMatrix();
+    }
+};
+
+class CustomConvolution : public Filters::ConvolutionFilter{
+public:
+    CustomConvolution(QString name, int height, int width, QPoint anc, int div, int off, std::vector<int> mat) : Filters::ConvolutionFilter(name){
+        m_height = height;
+        m_width = width;
+        anchor = anc;
+        divisor = div;
+        offset = off;
+        if (divisor == 0){
+            throw new std::invalid_argument("Cannot divide by 0");
+        }
+        if (anchor.x() >= m_width || anchor.y() >= m_height ||
+            anchor.x() < 0 || anchor.y() < 0){
+            throw new std::invalid_argument("Anchor out of bounds");
+        }
+        if(mat.size() != m_height * m_width){
+            throw new std::invalid_argument("Improper matrix");
+        }
+        matrix = this->generateMatrix();
+        for (int i=0; i<m_height; i++){
+            for (int j=0; j<m_width; j++){
+                matrix[i][j] = 0;
+                matrix[i][j] = mat[i*m_width + j];
+            }
+        }
+
+
+    }
+    ~CustomConvolution(){
         this->destroyMatrix();
     }
 };
