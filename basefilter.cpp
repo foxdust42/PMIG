@@ -76,6 +76,16 @@ int ConvolutionFilter::clamp(int val){
     return std::min(std::max(val, 0), 255);
 }
 
+std::vector<int> ConvolutionFilter::getMatrix(){
+    std::vector<int> mat;
+    for (int i=0; i<this->m_height; i++){
+        for(int j=0; j<this->m_width; j++){
+            mat.push_back(matrix[i][j]);
+        }
+    }
+    return mat;
+}
+
 ////
 InversionFilter::InversionFilter() : FunctionalFilter("Inversion Filter", false) {}
 InversionFilter::~InversionFilter() {}

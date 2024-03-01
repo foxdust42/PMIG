@@ -20,7 +20,6 @@ void CustomConvFilterTable::mousePressEvent(QMouseEvent *event){
 }
 
 void CustomConvFilterTable::setAnchor(int row, int column, bool reset){
-    QTextStream(stdout)<<"AAA";
     QWidget *new_anchor = (QWidget*)this->cellWidget(row, column);
     if (new_anchor == nullptr){
         QTextStream(stdout) << "setAnchor: No such cell\n";
@@ -52,7 +51,7 @@ int CustomConvFilterTable::calcDivisor(){
     return sum;
 }
 
-void CustomConvFilterTable::init(int rows, int columns){
+void CustomConvFilterTable::init(int rows, int columns, std::vector<int>* mat){
     setRowCount(rows);
     setColumnCount(columns);
     verticalHeader()->setDefaultSectionSize(1);
@@ -67,7 +66,13 @@ void CustomConvFilterTable::init(int rows, int columns){
             tableItem->setMaximum(INT_MAX);
             //QObject::connect(tableItem, )
             this->setCellWidget(i, j, tableItem);
-            ((QSpinBox*)this->cellWidget(i, j))->setValue( (i+1)*(j+1) );
+            if (mat != nullptr){
+                ((QSpinBox*)this->cellWidget(i, j))->setValue(mat->at(j * this->columnCount() + i));
+            }
+            else{
+                ((QSpinBox*)this->cellWidget(i, j))->setValue( (i+1)*(j+1) );
+            }
+
             //ui->customConvTable->setItem(i, j, tableItem);
         }
     }

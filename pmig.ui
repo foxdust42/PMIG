@@ -272,6 +272,9 @@
    <property name="shortcut">
     <string>Ctrl+S</string>
    </property>
+   <property name="menuRole">
+    <enum>QAction::ApplicationSpecificRole</enum>
+   </property>
   </action>
   <action name="actionReset_Image">
    <property name="text">
@@ -279,6 +282,9 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+R</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::ApplicationSpecificRole</enum>
    </property>
   </action>
  </widget>

@@ -72,7 +72,12 @@ public:
     virtual ~ConvolutionFilter() = 0;
     void applyFilter(QImage *image);
 
-
+    int getHeight(){ return m_height; }
+    int getWidth() {return m_width; }
+    int getDivisor() {return divisor; }
+    int getOffset() {return offset; }
+    QPoint getAnchor() { return anchor; }
+    std::vector<int> getMatrix();
 };
 
 } // namespace Filters

@@ -46,7 +46,7 @@ public:
 
     int calcDivisor();
 
-    void init(int rows, int columns);
+    void init(int rows, int columns, std::vector<int>* mat = nullptr);
 
     void del();
 

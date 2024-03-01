@@ -47,6 +47,8 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_listDClick);
     QObject::connect(ui->listWidget_Convolutional, &QListWidget::itemDoubleClicked,
                      this, &PMIG::slot_listDClick);
+    QObject::connect(ui->listWidget_Convolutional, &QListWidget::itemClicked,
+                     this, &PMIG::slot_loadCustomConv);
     QObject::connect(ui->actionReset_Image, &QAction::triggered,
                      this, &PMIG::slot_resetImage);
 
@@ -265,5 +267,18 @@ void PMIG::slot_saveCustom(){
                         height, width, anchor, divisor, offset, matrix));
 
     this->pushFilter(filters[filters.size()-1], filters.size()-1);
+
+}
+
+void PMIG::slot_loadCustomConv(QListWidgetItem* item){
+    Filters::ConvolutionFilter* filter = (Filters::ConvolutionFilter*)filters[item->data(Qt::UserRole + 0x1).toInt()];
+    ui->spinBox_Width->setValue(filter->getWidth());
+    ui->spinBox_Height->setValue(filter->getHeight());
+    ui->spinBox_Divisor->setValue(filter->getDivisor());
+    ui->spinBox_Offset->setValue(filter->getOffset());
+
+    ui->customConvTable->del();
+    std::vector<int> mat = filter->getMatrix();
+    ui->customConvTable->init(filter->getHeight(), filter->getWidth(), &mat);
 
 }

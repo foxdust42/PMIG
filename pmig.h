@@ -29,6 +29,7 @@ public slots:
     void slot_setCustomConv();
     void slot_calcDivisor();
     void slot_saveCustom();
+    void slot_loadCustomConv(QListWidgetItem*);
 
 private:
     Ui::PMIG *ui;
