@@ -4,6 +4,8 @@
 #include "functionalfilters.h"
 #include "convolutionfilters.h"
 #include "customconvfiltertable.h"
+#include "grayscale.h"
+#include "task2.h"
 
 #include <QGraphicsPixmapItem>
 #include <QDebug>
@@ -29,6 +31,9 @@ PMIG::PMIG(QWidget *parent)
     filters.push_back(new ConvolutionFilters::SharpenFilter());
     filters.push_back(new ConvolutionFilters::EdgeDetectionDiag());
     filters.push_back(new ConvolutionFilters::SouthEmoss());
+    filters.push_back(new Filters::MaxFilter());
+    filters.push_back(new Filters::MinFilter());
+    filters.push_back(new Task2::AverageDithering());
 
     initFilterLists();
 
@@ -47,6 +52,8 @@ PMIG::PMIG(QWidget *parent)
                      this, &PMIG::slot_listDClick);
     QObject::connect(ui->listWidget_Convolutional, &QListWidget::itemDoubleClicked,
                      this, &PMIG::slot_listDClick);
+    QObject::connect(ui->listWidget_other, &QListWidget::itemDoubleClicked,
+                     this, &PMIG::slot_listDClick);
     QObject::connect(ui->listWidget_Convolutional, &QListWidget::itemClicked,
                      this, &PMIG::slot_loadCustomConv);
     QObject::connect(ui->actionReset_Image, &QAction::triggered,
@@ -63,9 +70,49 @@ PMIG::PMIG(QWidget *parent)
 
     //
 
+    QObject::connect(ui->actionLightness, &QAction::triggered, this, &PMIG::slot_lightnessGray);
+    QObject::connect(ui->actionAverage, &QAction::triggered, this, &PMIG::slot_averageGray);
+    QObject::connect(ui->actionLuminosity, &QAction::triggered, this, &PMIG::slot_luminosityGray);
+
     QTextStream(stdout) << "Setup Done\n" ;
 
     //this->loadImage();
+}
+
+void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out){
+    QTextStream(stdout) << out;
+    QMessageBox msg;
+    msg.setWindowTitle(title);
+    msg.setIcon(icon);
+    msg.setText(text);
+    msg.setInformativeText(info_text);
+    msg.exec();
+}
+
+
+void PMIG::slot_lightnessGray(){
+    if (modified_image.isNull()){
+        scream("Gray error", QMessageBox::Critical, "Failed to apply grayscale : No Image Found", "Please load an image before applying filters", "No Image found\n");
+        return;
+    }
+    Task2::LightnessGray::toGray(&modified_image);
+    loadRightImage();
+}
+void PMIG::slot_averageGray(){
+    if (modified_image.isNull()){
+        scream("Gray error", QMessageBox::Critical, "Failed to apply grayscale : No Image Found", "Please load an image before applying filters", "No Image found\n");
+        return;
+    }
+    Task2::AverageGray::toGray(&modified_image);
+    loadRightImage();
+}
+void PMIG::slot_luminosityGray(){
+    if (modified_image.isNull()){
+        scream("Gray error", QMessageBox::Critical, "Failed to apply grayscale : No Image Found", "Please load an image before applying filters", "No Image found\n");
+        return;
+    }
+    Task2::LuminosityGray::toGray(&modified_image);
+    loadRightImage();
 }
 
 void PMIG::loadImage() {
@@ -87,7 +134,6 @@ void PMIG::loadImage() {
         return;
     }
 
-
     original_scene->clear();
     //original_scene = new QGraphicsScene(this);
     ui->graphicsViewLeft->setScene(original_scene);
@@ -103,13 +149,7 @@ void PMIG::loadImage() {
 
 void PMIG::slot_saveImage(){
     if(this->modified_image.isNull()){
-        QTextStream(stdout) << "No save: No Image found\n";
-        QMessageBox msg;
-        msg.setWindowTitle("Save error");
-        msg.setIcon(QMessageBox::Critical);
-        msg.setText("Failed to Save image : No Image Found");
-        msg.setInformativeText("Nothing to save");
-        msg.exec();
+        scream("Save error", QMessageBox::Critical, "Failed to Save image : No Image Found", "Nothing to save", "No save: No Image found\n");
         return;
     }
 
@@ -221,6 +261,13 @@ void PMIG::pushFilter(Filters::BaseFilter *filter, int ind){
                                    QListWidgetItem::ItemType::UserType);
         item->setData(Qt::UserRole + 0x1, QVariant(ind));
         this->ui->listWidget_Convolutional->addItem(item);
+        break;
+    case Filters::FilterClass::FILTER_OTHER:
+        item = new QListWidgetItem(QString(filter->getName()),
+                                   ui->listWidget_other,
+                                   QListWidgetItem::ItemType::UserType);
+        item->setData(Qt::UserRole + 0x1, QVariant(ind));
+        this->ui->listWidget_other->addItem(item);
         break;
     default:
         throw new std::invalid_argument("Unknown filter type");

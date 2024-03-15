@@ -10,7 +10,8 @@ namespace Filters {
 enum FilterClass{
     UNKNOWN,
     FILTER_FUNCTIONAL,
-    FILTER_CONVOLUTION
+    FILTER_CONVOLUTION,
+    FILTER_OTHER,
 };
 
 class BaseFilter //Abstract filter class
@@ -78,6 +79,46 @@ public:
     int getOffset() {return offset; }
     QPoint getAnchor() { return anchor; }
     std::vector<int> getMatrix();
+};
+
+class MaxFilter : public BaseFilter {
+protected:
+    int m_height = 5;
+    int m_width = 5;
+    int divisor = 1;
+    int offset = 0;
+    QPoint anchor = QPoint(2,2);
+
+    QRgb apply_matrix(QImage *image, int x, int y);
+
+    int clamp(int val);
+
+public:
+    MaxFilter() :
+        BaseFilter(FILTER_FUNCTIONAL, "MAX Filter", true) {}
+    ~MaxFilter(){}
+    void applyFilter(QImage *image);
+
+};
+
+class MinFilter : public BaseFilter {
+protected:
+    int m_height = 5;
+    int m_width = 5;
+    int divisor = 1;
+    int offset = 0;
+    QPoint anchor = QPoint(2,2);
+
+    QRgb apply_matrix(QImage *image, int x, int y);
+
+    int clamp(int val);
+
+public:
+    MinFilter() :
+        BaseFilter(FILTER_FUNCTIONAL, "MIN Filter", true) {}
+    ~MinFilter(){}
+    void applyFilter(QImage *image);
+
 };
 
 } // namespace Filters

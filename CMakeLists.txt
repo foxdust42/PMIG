@@ -53,6 +53,8 @@ else()
             imageview.h imageview.cpp
             convolutionfilters.h
             customconvfiltertable.h customconvfiltertable.cpp
+            grayscale.h grayscale.cpp
+            task2.h task2.cpp
         )
     endif()
 

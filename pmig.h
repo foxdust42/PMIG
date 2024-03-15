@@ -6,6 +6,7 @@
 #include <QMainWindow>
 #include <qgraphicsscene.h>
 #include <qlistwidget.h>
+#include <QMessageBox>
 
 #include "basefilter.h"
 
@@ -30,6 +31,10 @@ public slots:
     void slot_calcDivisor();
     void slot_saveCustom();
     void slot_loadCustomConv(QListWidgetItem*);
+
+    void slot_lightnessGray();
+    void slot_averageGray();
+    void slot_luminosityGray();
 
 private:
     Ui::PMIG *ui;
@@ -56,6 +61,8 @@ private:
 
     void initFilterLists();
     void pushFilter(Filters::BaseFilter *filter, int ind);
+
+    void scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out = "");
 
 
 };

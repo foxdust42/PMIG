@@ -106,4 +106,89 @@ void InversionFilter::applyFilter(QImage *image){
     }
 }
 
+QRgb MaxFilter::apply_matrix(QImage *image, int x, int y){
+    int r=0, g=0, b=0;
+    int divisor = this->divisor;
+    //int xt, yt;
+    x -= anchor.x();
+    y -= anchor.y();
+    QColor c;
+    for (int i=0; i<m_height; i++){
+        for (int j=0; j<m_width; j++){
+            c = image->pixelColor(std::max(std::min(y + i, image->width()),0),
+                                  std::max(std::min(x + j, image->height()), 0));
+            r = std::max(c.red(), r);
+            g = std::max(c.green(), g);
+            b = std::max(c.blue(), b);
+        }
+    }
+    r /= divisor;
+    g /= divisor;
+    b /= divisor;
+    r = clamp(r + this->offset);
+    g = clamp(g + this->offset);
+    b = clamp(b + this->offset);
+    return qRgb(r, g, b);
+}
+
+void MaxFilter::applyFilter(QImage *image){
+    //if filter attempts to query a pixel outside image bounds
+    //use the closest pixel
+    int x, y;
+    QImage new_image = QImage(*image);
+    QRgb* row;
+    for (int i=0; i<new_image.height(); i++){
+        row = (QRgb*)new_image.scanLine(i);
+        for (int j=0; j<new_image.width(); j++){
+            row[j] = apply_matrix(image, i, j);
+        }
+    }
+    *image = new_image;
+}
+
+int MaxFilter::clamp(int val){
+    return std::min(std::max(val, 0), 255);
+}
+
+QRgb MinFilter::apply_matrix(QImage *image, int x, int y){
+    int r=255, g=255, b=255;
+    //int xt, yt;
+    x -= anchor.x();
+    y -= anchor.y();
+    QColor c;
+    for (int i=0; i<m_height; i++){
+        for (int j=0; j<m_width; j++){
+            c = image->pixelColor(std::max(std::min(y + i, image->width()),0),
+                                  std::max(std::min(x + j, image->height()), 0));
+            r = std::min(c.red(), r);
+            g = std::min(c.green(), g);
+            b = std::min(c.blue(), b);
+        }
+    }
+    r = clamp(r + this->offset);
+    g = clamp(g + this->offset);
+    b = clamp(b + this->offset);
+    return qRgb(r, g, b);
+}
+
+void MinFilter::applyFilter(QImage *image){
+    //if filter attempts to query a pixel outside image bounds
+    //use the closest pixel
+    int x, y;
+    QImage new_image = QImage(*image);
+    QRgb* row;
+    for (int i=0; i<new_image.height(); i++){
+        row = (QRgb*)new_image.scanLine(i);
+        for (int j=0; j<new_image.width(); j++){
+            row[j] = apply_matrix(image, i, j);
+        }
+    }
+    *image = new_image;
+}
+
+int MinFilter::clamp(int val){
+    return std::min(std::max(val, 0), 255);
+}
+
+
 } // namespace Filters
