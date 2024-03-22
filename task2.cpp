@@ -3,6 +3,7 @@
 #include <QTextStream>
 #include <QInputDialog>
 #include <QApplication>
+#include <random>
 namespace Task2 {
 
 typedef unsigned long long ull;
@@ -192,7 +193,8 @@ void MedianCut::applyFilter(QImage *image){
             QTextStream(stdout) << "operation cancelled\n";
             return;
         }
-
+        break;
+        /*
         if ((colors & (colors-1)) == 0 && colors != 0){
             //channels is a power of 2
             break;
@@ -202,17 +204,14 @@ void MedianCut::applyFilter(QImage *image){
         msg.setWindowTitle("Invalid color no");
         msg.setIcon(QMessageBox::Warning);
         msg.setText("value must be a power of 2");
-        msg.exec();
+        msg.exec();*/
     }
 
     int levels = 0;
-
-    while (colors >> 1 != 0){
-        levels++;
-        colors = colors >> 1;
-    }
-    QTextStream(stdout) << levels;
     bucket *root = new bucket;
+
+    std::vector<bucket*> buckets;
+
     root->pixels = new std::vector<QRgb*>();
     QRgb *row;
     for (int i=0; i<image->height(); i++){
@@ -222,11 +221,134 @@ void MedianCut::applyFilter(QImage *image){
         }
     }
 
-    MedianCut::parse_bucket(root, levels);
 
-    MedianCut::destroy_bucket(root);
+
+    std::shuffle(root->pixels->begin(), root->pixels->end(),
+                 std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
+
+    buckets.push_back(root);
+
+    int ind = -1;
+    int max_span = -1;
+
+    bucket *tmp;
+    colors--;
+    while(colors != 0){
+        ind = -1;
+        max_span = -1;
+        for (int i = 0; i < buckets.size(); i++){
+            if(buckets[i]->max_span == -1){
+                calc_span(buckets[i]);
+            }
+            if (buckets[i]->max_span > max_span){
+                max_span = buckets[i]->max_span;
+                ind = i;
+            }
+        }
+        MedianCut::sort_pixels(buckets[ind]);
+        tmp = MedianCut::split_bucket(buckets[ind]);
+        buckets.insert(buckets.begin() + ind, tmp);
+
+        colors--;
+    }
+
+    for (bucket *b : buckets) {
+        b->color = MedianCut::get_average(b->pixels);
+        //QTextStream(stdout) << b->pixels->size() << ", ";
+        for (QRgb* p : *b->pixels){
+            *p = b->color;
+        }
+        //break;
+    }
+    QTextStream(stdout) << "\n";
+
+    //MedianCut::parse_bucket(root, levels);
+
+    MedianCut::destroy_buckets(buckets);
+
+    //MedianCut::destroy_bucket(root);
 }
 
+MedianCut::bucket* MedianCut::split_bucket(bucket* b){
+    bucket *n = new bucket;
+    //n->pixels;// = new std::vector<QRgb*>;
+    //n->pixels->reserve(b->pixels->size()/2);
+    std::vector<QRgb*> *tmp;
+
+    if (b->pixels->size() <= 1){
+        n->pixels = new std::vector<QRgb*>;
+        if (b->pixels->size() == 1){
+            tmp = new std::vector<QRgb*>(b->pixels->begin(), b->pixels->end());
+        }
+        else{
+            tmp = new std::vector<QRgb*>;
+        }
+    }
+    else{
+        n->pixels = new std::vector<QRgb*>(b->pixels->begin(), b->pixels->begin() + b->pixels->size()/2 );
+        tmp = new std::vector<QRgb*>(b->pixels->begin() + b->pixels->size()/2+1, b->pixels->end());
+    }
+
+    b->max_span = -1;
+    b->color = 0;
+
+    delete b->pixels;
+    b->pixels = tmp;
+    return n;
+}
+
+void MedianCut::sort_pixels(bucket* b){
+    int (*qColor)(QRgb val);
+
+    switch (b->slpit_c) {
+    case 'r':
+        qColor = qRed;
+        break;
+    case 'g':
+        qColor = qGreen;
+        break;
+    case 'b':
+        qColor = qBlue;
+        break;
+    default:
+        throw std::invalid_argument("bucket must have calculated spans before it can be sorted");
+        break;
+    }
+
+    std::sort(b->pixels->begin(), b->pixels->end(), [qColor](QRgb* l, QRgb* r){ return qColor(*l) < qColor(*r);});
+}
+
+void MedianCut::calc_span(bucket* b){
+    int max_r = 0;
+    int max_g = 0;
+    int max_b = 0;
+    int min_r = 255;
+    int min_g = 255;
+    int min_b = 255;
+
+    for (QRgb* p : *(b->pixels)){
+        if (qRed(*p)    > max_r ) { max_r = qRed(*p);}
+        if (qGreen(*p)  > max_g ) { max_g = qGreen(*p);}
+        if (qBlue(*p)   > max_b ) { max_b = qBlue(*p);}
+        if (qRed(*p)    < min_r ) { min_r = qRed(*p);}
+        if (qGreen(*p)  < min_g ) { min_g = qGreen(*p);}
+        if (qBlue(*p)   < min_b ) { min_b = qBlue(*p);}
+    }
+
+    if ( (max_r - min_r) > (max_g - min_g) && (max_r - min_r) > (max_b - min_b)){
+        b->slpit_c = 'r';
+        b->max_span = max_r - min_r;
+    } else if ((max_g - min_g) > (max_b - min_b)) {
+        b->slpit_c = 'g';
+        b->max_span = max_g - min_g;
+    } else {
+        b->slpit_c = 'b';
+        b->max_span = max_b - min_b;
+    }
+
+}
+
+/*
 void MedianCut::parse_bucket(bucket *b, int level){
     if (level == 0){
         b->color = get_average(b->pixels);
@@ -306,7 +428,7 @@ void MedianCut::parse_bucket(bucket *b, int level){
     parse_bucket(b->l, level-1);
 
 }
-
+*/
 QRgb MedianCut::get_average(std::vector<QRgb*> *vec){
     ull red = 0;
     ull green = 0;
@@ -328,6 +450,14 @@ QRgb MedianCut::get_average(std::vector<QRgb*> *vec){
     return qRgb((int)red, (int)green, (int)blue);
 }
 
+void MedianCut::destroy_buckets(std::vector<bucket*> vec){
+    for (bucket *b : vec){
+        delete b->pixels;
+        delete b;
+        b = nullptr;
+    }
+}
+/*
 void MedianCut::destroy_bucket(bucket *b){
     if(b->l != nullptr){
         MedianCut::destroy_bucket(b->l);
@@ -339,6 +469,6 @@ void MedianCut::destroy_bucket(bucket *b){
         delete b->pixels;
     }
     delete b;
-}
+}*/
 
 } // namespace Task2

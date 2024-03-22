@@ -20,17 +20,25 @@ public:
 class MedianCut : public Filters::BaseFilter{
 private:
     typedef struct _bucket {
-        struct _bucket *l = nullptr;
-        struct _bucket *h = nullptr;
+        //struct _bucket *l = nullptr;
+        //struct _bucket *h = nullptr;
         QRgb color;
-        int split_val;
-        char slpit_c;
+        int max_span = -1;
+        char slpit_c = 0;
         std::vector<QRgb*> *pixels = nullptr;
     } bucket;
 
-    static void destroy_bucket(bucket *b);
+    //static void destroy_bucket(bucket *b);
 
-    static void parse_bucket(bucket *b, int level);
+    static void destroy_buckets(std::vector<bucket*> vec);
+
+    static void calc_span(bucket* b);
+
+    static void sort_pixels(bucket* b);
+
+    static bucket* split_bucket(bucket * b);
+
+    //static void parse_bucket(bucket *b, int level);
 
     static QRgb get_average(std::vector<QRgb*> *vec);
 public:
