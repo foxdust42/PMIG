@@ -35,6 +35,7 @@ PMIG::PMIG(QWidget *parent)
     filters.push_back(new Filters::MinFilter());
     filters.push_back(new Task2::AverageDithering());
     filters.push_back(new Task2::MedianCut());
+    filters.push_back(new Task2::HistogramStretchingWithThreshold());
 
     initFilterLists();
 

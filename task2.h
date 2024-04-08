@@ -17,6 +17,18 @@ public:
     void applyFilter(QImage *image);
 };
 
+class HistogramStretchingWithThreshold : public Filters::BaseFilter
+{
+public:
+    HistogramStretchingWithThreshold(): Filters::BaseFilter(
+            Filters::FilterClass::FILTER_OTHER,
+            "Histogram Stretching With Threshold",
+            false){}
+    ~HistogramStretchingWithThreshold(){}
+
+    void applyFilter(QImage *image);
+};
+
 class MedianCut : public Filters::BaseFilter{
 private:
     typedef struct _bucket {

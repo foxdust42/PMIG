@@ -4,6 +4,7 @@
 #include <QInputDialog>
 #include <QApplication>
 #include <random>
+#include <algorithm>
 namespace Task2 {
 
 typedef unsigned long long ull;
@@ -18,7 +19,6 @@ void AverageDithering::applyFilter(QImage *image){
     bool is_gray = image->isGrayscale();
     bool ok;
     unsigned int channels;
-    while (true){
 
     channels = QInputDialog::getInt(
                             QApplication::activeWindow(),
@@ -30,56 +30,46 @@ void AverageDithering::applyFilter(QImage *image){
                             1,
                             &ok);
 
-        if (!ok){
-            QTextStream(stdout) << "operation cancelled\n";
-            return;
-        }
-
-        if ((channels & (channels-1)) == 0 && channels != 0){
-            //channels is a power of 2
-            break;
-        }
-        QTextStream(stdout) << "Not a power of 2";
-        QMessageBox msg;
-        msg.setWindowTitle("Invalid channel no");
-        msg.setIcon(QMessageBox::Warning);
-        msg.setText("value must be a power of 2");
-        msg.exec();
+    if (!ok){
+        QTextStream(stdout) << "operation cancelled\n";
+        return;
     }
+
     std::vector<int> thresholds(channels - 1, 0);
     std::vector<int> thresholds_r(channels - 1, 0);
     std::vector<int> thresholds_g(channels - 1, 0);
     std::vector<int> thresholds_b(channels - 1, 0);
 
     QRgb *row;
+    //int js = channels/4;
 
-    int js = channels/4;
+    ull count = image->width()*image->height();
+    std::vector<ull> gray_pdf(256, 0);
+    std::vector<ull> red_pdf(256, 0);
+    std::vector<ull> green_pdf(256, 0);
+    std::vector<ull> blue_pdf(256, 0);
 
     if (is_gray){
-        for (int i=0; i<image->height(); i++){
+        QTextStream(stdout) << "adhaisd\n";
+        for (int i=0; i < image->height(); i++){
             row = (QRgb*)image->scanLine(i);
             ull loc_sum = 0;
-            for (int j=0; j<image->width(); j++){
-                loc_sum += qGray(row[j]);
-                //QTextStream(stdout) << cum_avg << ", ";
+            for (int j=0; j < image->width(); j++){
+                gray_pdf[qGray(row[j])] += 1;
             }
-            cum_avg += loc_sum/image->width();
         }
-        cum_avg/=image->height();
 
-        thresholds[channels/2 -1] = cum_avg;
-        while (js != 0){
-            for (int i=js; i<=thresholds.size(); i+=2*js){
-                //if (i % js*2 == 0) {continue;}
-                thresholds[i-1] = ( (i == js ? 0 : thresholds[i-1-js]) +
-                                     ( (i + js -1) >= thresholds.size() ? 255 : thresholds[i-1+js]) )/2;
-                //QTextStream(stdout) << (i + js -1 ) << " : " << thresholds.size()
+        ull r_count = 0;
+        int tmp = 1;
+        for (int i = 0; i < 255; i++){
+            r_count += gray_pdf[i];
+            if ( (((double)r_count)/((double)(count))) > (((double)(tmp))/((double)(channels))) ) {
+                thresholds[tmp-1] = i+1;
+                tmp ++;
             }
-            js /= 2;
         }
 
         std::vector<int> values(channels, 0);
-
         values[0] = 0;
         values[channels-1]=255;
 
@@ -100,37 +90,38 @@ void AverageDithering::applyFilter(QImage *image){
         }
     }
     else {
-        for (int i=0; i<image->height(); i++){
+        for (int i=0; i < image->height(); i++){
             row = (QRgb*)image->scanLine(i);
-            ull loc_sum_r = 0;
-            ull loc_sum_g = 0;
-            ull loc_sum_b = 0;
-            for (int j=0; j<image->width(); j++){
-                loc_sum_r += qRed(row[j]);
-                loc_sum_g += qGreen(row[j]);
-                loc_sum_b += qBlue(row[j]);
+            ull loc_sum = 0;
+            for (int j=0; j < image->width(); j++){
+                red_pdf[qRed(row[j])] += 1;
+                green_pdf[qGreen(row[j])] += 1;
+                blue_pdf[qBlue(row[j])] += 1;
             }
-            cum_r += loc_sum_r/image->width();
-            cum_g += loc_sum_g/image->width();
-            cum_b += loc_sum_b/image->width();
         }
-        cum_r/=image->height();
-        cum_g/=image->height();
-        cum_b/=image->height();
 
-        thresholds_r[channels/2 -1] = cum_r;
-        thresholds_g[channels/2 -1] = cum_g;
-        thresholds_b[channels/2 -1] = cum_b;
-        while (js != 0){
-            for (int i=js; i<=thresholds.size(); i+=2*js){
-                thresholds_r[i-1] = ( (i == js ? 0 : thresholds_r[i-1-js]) +
-                                     ( (i + js -1) >= thresholds_r.size() ? 255 : thresholds_r[i-1+js]) )/2;
-                thresholds_g[i-1] = ( (i == js ? 0 : thresholds_g[i-1-js]) +
-                                       ( (i + js -1) >= thresholds_g.size() ? 255 : thresholds_g[i-1+js]) )/2;
-                thresholds_b[i-1] = ( (i == js ? 0 : thresholds_b[i-1-js]) +
-                                       ( (i + js -1) >= thresholds_b.size() ? 255 : thresholds_b[i-1+js]) )/2;
+        ull red_count = 0;
+        ull green_count = 0;
+        ull blue_count = 0;
+        int r_tmp = 1;
+        int g_tmp = 1;
+        int b_tmp = 1;
+        for (int i = 0; i < 255; i++){
+            red_count += red_pdf[i];
+            green_count += green_pdf[i];
+            blue_count += blue_pdf[i];
+            if ( (((double)red_count)/((double)(count))) > (((double)(r_tmp))/((double)(channels))) ) {
+                thresholds_r[r_tmp-1] = i+1;
+                r_tmp ++;
             }
-            js /= 2;
+            if ( (((double)green_count)/((double)(count))) > (((double)(g_tmp))/((double)(channels))) ) {
+                thresholds_g[g_tmp-1] = i+1;
+                g_tmp ++;
+            }
+            if ( (((double)blue_count)/((double)(count))) > (((double)(b_tmp))/((double)(channels))) ) {
+                thresholds_b[b_tmp-1] = i+1;
+                b_tmp ++;
+            }
         }
 
         std::vector<int> values_r(channels, 0);
@@ -348,87 +339,7 @@ void MedianCut::calc_span(bucket* b){
 
 }
 
-/*
-void MedianCut::parse_bucket(bucket *b, int level){
-    if (level == 0){
-        b->color = get_average(b->pixels);
-        for (int i=0; i< b->pixels->size(); i++){
-            *(*b->pixels)[i] = b->color;
-        }
-        return;
-    }
 
-    int red_l = 255;
-    int red_h = 0;
-    int green_l = 255;
-    int green_h = 0;
-    int blue_l = 255;
-    int blue_h = 0;
-
-    for (QRgb* p : *b->pixels){
-        red_l   = std::min(red_l, qRed(*p));
-        red_h   = std::max(red_h, qRed(*p));
-        green_l = std::min(green_l, qGreen(*p));
-        green_h = std::max(green_h, qGreen(*p));
-        blue_l  = std::min(blue_l, qBlue(*p));
-        blue_h  = std::max(blue_h, qBlue(*p));
-    }
-
-    if ((red_h - red_l) >= (blue_h - blue_l) && (red_h - red_l) >= (green_h - green_l)){
-        b->color = 'r';
-    }
-    else {
-        if((blue_h - blue_l) >= (green_h - green_l)){
-            b->color = 'b';
-        } else{
-            b->color = 'g';
-        }
-    }
-
-    int (*col)(QRgb);
-
-    switch (b->color) {
-    case 'r':
-        b->split_val = (red_h+red_l)/2;
-        col = qRed;
-        break;
-    case 'g':
-        b->split_val = (green_h+green_l)/2;
-        col = qGreen;
-        break;
-    case 'b':
-        b->split_val = (blue_h+blue_l)/2;
-        col = qBlue;
-        break;
-    default:
-        throw new std::domain_error("????");
-        break;
-    }
-
-    b->h = new bucket;
-    b->h->pixels = new std::vector<QRgb*>();
-
-    b->l = new bucket;
-    b->l->pixels = new std::vector<QRgb*>();
-
-    for(QRgb* p : *b->pixels){
-        if (col(*p) >= b->split_val){
-            b->h->pixels->push_back(p);
-        }
-        else{
-            b->l->pixels->push_back(p);
-        }
-    }
-
-    delete b->pixels;
-
-    b->pixels = nullptr;
-
-    parse_bucket(b->h, level-1);
-    parse_bucket(b->l, level-1);
-
-}
-*/
 QRgb MedianCut::get_average(std::vector<QRgb*> *vec){
     ull red = 0;
     ull green = 0;
@@ -470,5 +381,95 @@ void MedianCut::destroy_bucket(bucket *b){
     }
     delete b;
 }*/
+
+void HistogramStretchingWithThreshold::applyFilter(QImage *image){
+    int threshold = 1000;
+
+    int r_min = -1;
+    int g_min = -1;
+    int b_min = -1;
+
+    int r_max = -1;
+    int g_max = -1;
+    int b_max = -1;
+
+    //std::vector<ull> gray_pdf(256, 0);
+    std::vector<ull> r_pdf(256, 0);
+    std::vector<ull> g_pdf(256, 0);
+    std::vector<ull> b_pdf(256, 0);
+
+    for (int i=0; i < image->height(); i++){
+        QRgb* row = (QRgb*)image->scanLine(i);
+        //ull loc_sum = 0;
+        for (int j=0; j < image->width(); j++){
+            r_pdf[qRed(row[j])] += 1;
+            g_pdf[qGreen(row[j])] += 1;
+            b_pdf[qBlue(row[j])] += 1;
+        }
+    }
+
+    int tmp = std::min(std::min(*std::min_element(r_pdf.begin(), r_pdf.end()),
+                                *std::min_element(g_pdf.begin(), g_pdf.end())),
+                                 *std::min_element(b_pdf.begin(), b_pdf.end()));
+
+    threshold = std::max(threshold, tmp + 2);
+
+    int i=0;
+
+    while (r_min == -1 || g_min == -1 || b_min == -1) {
+        if (r_min == -1 && r_pdf[i] >= threshold) {
+            r_min = i;
+        }
+        if (g_min == -1 && g_pdf[i] >= threshold) {
+            g_min = i;
+        }
+        if (b_min == -1 && b_pdf[i] >= threshold) {
+            b_min = i;
+        }
+        i++;
+    }
+    i = 255;
+    while (r_max == -1 || g_max == -1 || b_max == -1) {
+        if (r_max == -1 && r_pdf[i] >= threshold) {
+            r_max = i;
+        }
+        if (g_max == -1 && g_pdf[i] >= threshold) {
+            g_max = i;
+        }
+        if (b_max == -1 && b_pdf[i] >= threshold) {
+            b_max = i;
+        }
+        i--;
+    }
+
+    for (int i=0; i < image->height(); i++){
+        QRgb* row = (QRgb*)image->scanLine(i);
+        //ull loc_sum = 0;
+        for (int j=0; j < image->width(); j++){
+            int tmp_r = qRed(row[j]);
+            int tmp_g = qGreen(row[j]);
+            int tmp_b = qBlue(row[j]);
+
+            tmp_r -= r_min;
+            tmp_g -= g_min;
+            tmp_b -= b_min;
+
+            tmp_r *= 255;
+            tmp_g *= 255;
+            tmp_b *= 255;
+
+            tmp_r /= (r_max - r_min);
+            tmp_g /= (g_max - g_min);
+            tmp_b /= (b_max - b_min);
+
+            tmp_r = std::max(0, std::min(255, tmp_r));
+            tmp_g = std::max(0, std::min(255, tmp_g));
+            tmp_b = std::max(0, std::min(255, tmp_b));
+
+            row[j] = qRgb(tmp_r, tmp_g, tmp_b);
+        }
+    }
+
+}
 
 } // namespace Task2
