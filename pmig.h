@@ -7,6 +7,9 @@
 #include <qgraphicsscene.h>
 #include <qlistwidget.h>
 #include <QMessageBox>
+#include <QSpinBox>
+
+#include "vectorcomponent.h"
 
 #include "basefilter.h"
 
@@ -36,6 +39,11 @@ public slots:
     void slot_averageGray();
     void slot_luminosityGray();
 
+    void slot_newImage();
+
+    void slot_updateColor(int);
+    void slot_updateThickness(int);
+
 private:
     Ui::PMIG *ui;
 
@@ -46,18 +54,24 @@ private:
 
     //image display based on https://stackoverflow.com/questions/1357960/qt-jpg-image-display
     QGraphicsScene *original_scene;
-    QGraphicsScene *new_scene;
+    CustomGraphicsScene *new_scene;
     //QGraphicsTextItem *text;
     QImage image;
     QImage modified_image;
     QGraphicsPixmapItem *item;
     QGraphicsPixmapItem *modified_item;
 
+    QColor sample_color;
+    QGraphicsScene *sample_scene;
+    QImage sample_image;
+    QGraphicsPixmapItem *sample_item;
     //void initCustomConv(int rows, int columns);
     //void deleteCustomConv();
 
     void loadImage();
     void loadRightImage();
+
+    void newImage();
 
     void initFilterLists();
     void pushFilter(Filters::BaseFilter *filter, int ind);
@@ -66,4 +80,16 @@ private:
 
 
 };
+
+class NewImageDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit NewImageDialog(QWidget *parent = nullptr);
+
+    static QList<int> getVals(QWidget *parent, bool *ok = nullptr);
+
+private:
+    QList<QSpinBox*> fields;
+};
+
 #endif // PMIG_H

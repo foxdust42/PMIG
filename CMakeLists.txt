@@ -12,6 +12,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
 
+#find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Svg)
+#target_link_libraries(mytarget PRIVATE Qt6::Svg)
+
 set(TS_FILES PMIG_en_150.ts)
 
 set(PROJECT_SOURCES
@@ -55,6 +58,8 @@ else()
             customconvfiltertable.h customconvfiltertable.cpp
             grayscale.h grayscale.cpp
             task2.h task2.cpp
+            vectorcomponent.h vectorcomponent.cpp
+            img_res.qrc
         )
     endif()
 

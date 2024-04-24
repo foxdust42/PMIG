@@ -13,6 +13,7 @@
 #include <QFileDialog>
 #include <qscreen.h>
 #include <QMessageBox>
+#include <QDialogButtonBox>
 
 PMIG::PMIG(QWidget *parent)
     : QMainWindow(parent)
@@ -44,7 +45,7 @@ PMIG::PMIG(QWidget *parent)
     ui->customConvTable->init(3, 3);
 
     original_scene = new QGraphicsScene(this);
-    new_scene = new QGraphicsScene(this);
+    new_scene = new CustomGraphicsScene(this);
 
     QObject::connect(ui->actionOpen, &QAction::triggered,
                      this, &PMIG::loadImage);
@@ -76,6 +77,38 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->actionAverage, &QAction::triggered, this, &PMIG::slot_averageGray);
     QObject::connect(ui->actionLuminosity, &QAction::triggered, this, &PMIG::slot_luminosityGray);
 
+    //
+
+    QObject::connect(ui->action_New, &QAction::triggered, this, &PMIG::slot_newImage);
+
+    //
+
+    QObject::connect(ui->spinBox_Red, QOverload<int>::of(&QSpinBox::valueChanged),
+                     this, &PMIG::slot_updateColor);
+    QObject::connect(ui->spinBox_Green, QOverload<int>::of(&QSpinBox::valueChanged),
+                     this, &PMIG::slot_updateColor);
+    QObject::connect(ui->spinBox_Blue, QOverload<int>::of(&QSpinBox::valueChanged),
+                     this, &PMIG::slot_updateColor);
+
+    QObject::connect(ui->spinBox_Thickness, QOverload<int>::of(&QSpinBox::valueChanged),
+                     this, &PMIG::slot_updateThickness);
+
+    sample_image = QImage(300, 100, QImage::Format_RGBA64);
+    sample_image.fill(QColor(0,0,0));
+    sample_scene = new QGraphicsScene(this);
+    sample_item = new QGraphicsPixmapItem(QPixmap::fromImage(sample_image));
+    sample_scene->addItem(sample_item);
+    ui->graphicsView_ColorPreview->setScene(sample_scene);
+    ui->graphicsView_ColorPreview->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    ui->graphicsView_ColorPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    //ui->graphicsView_ColorPreview->fitInView(sample_image.rect());
+
+
+
+    //QObject::connect(ui->spinBox_Red, &QSpinBox::valueChanged, this, nullptr);
+
+    //
+
     QTextStream(stdout) << "Setup Done\n" ;
 
     //this->loadImage();
@@ -91,6 +124,25 @@ void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString i
     msg.exec();
 }
 
+void PMIG::slot_updateColor(int){
+
+    sample_color = QColor(ui->spinBox_Red->value(), ui->spinBox_Green->value(), ui->spinBox_Blue->value());
+    QTextStream(stdout) << sample_color.red() << " " << sample_color.green() << " " << sample_color.blue() << "\n";
+    sample_image.fill(sample_color);
+    sample_scene->clear();
+
+    sample_item = new QGraphicsPixmapItem(QPixmap::fromImage(sample_image));
+    sample_scene->addItem(sample_item);
+
+    ui->graphicsView_ColorPreview->setScene(sample_scene);
+
+    new_scene->setColor(sample_color.rgb());
+
+}
+
+void PMIG::slot_updateThickness(int t){
+    new_scene->setThickness(t);
+}
 
 void PMIG::slot_lightnessGray(){
     if (modified_image.isNull()){
@@ -131,6 +183,10 @@ void PMIG::loadImage() {
 
     image = QImage(fileName);
 
+    //QImage::Format f = QImage::Format::Format_A2BGR30_Premultiplied;
+
+    //QTextStream(stdout) << image.format() << '\n';
+
     if (image.isNull()){
         QTextStream(stderr) << "Failed to load image";
         return;
@@ -142,14 +198,49 @@ void PMIG::loadImage() {
 
     modified_image = QImage(image);
     this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
-    this->item->setFlag(QGraphicsItem::ItemIsMovable);
+    //this->item->setFlag(QGraphicsItem::ItemIsMovable);
     original_scene->addItem(this->item);
 
     loadRightImage();
 
 }
 
+void PMIG::newImage() {
+
+    bool ok;
+
+    QList<int> size = NewImageDialog::getVals(this, &ok);
+
+    if (!ok){
+        QTextStream(stdout) << "Cancelled\n";
+        return;
+    }
+
+    image = QImage(size[0], size[1], QImage::Format::Format_RGB32);
+
+    image.fill(QColor::fromRgb(255,255,255));
+
+    original_scene->clear();
+    //original_scene = new QGraphicsScene(this);
+    ui->graphicsViewLeft->setScene(original_scene);
+
+    modified_image = QImage(image);
+    this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
+    //this->item->setFlag(QGraphicsItem::ItemIsMovable);
+    original_scene->addItem(this->item);
+
+    loadRightImage();
+
+}
+
+void PMIG::slot_newImage(){
+    PMIG::newImage();
+}
+
 void PMIG::slot_saveImage(){
+
+    //if (this->new_scene->)
+
     if(this->modified_image.isNull()){
         scream("Save error", QMessageBox::Critical, "Failed to Save image : No Image Found", "Nothing to save", "No save: No Image found\n");
         return;
@@ -217,11 +308,13 @@ void PMIG::slot_listDClick(QListWidgetItem *item){
 
 
 void PMIG::loadRightImage(){
-    new_scene->clear();
-    modified_item = new QGraphicsPixmapItem(QPixmap::fromImage(modified_image));
-    new_scene = new QGraphicsScene(this);
-    new_scene->addItem(modified_item);
-    this->modified_item->setFlag(QGraphicsItem::ItemIsMovable);
+    //new_scene->clear();
+    //delete new_scene;
+    //modified_item = new QGraphicsPixmapItem(QPixmap::fromImage(modified_image));
+    //new_scene = new CustomGraphicsScene(this);
+    //new_scene->addItem(modified_item);
+    //this->modified_item->setFlag(QGraphicsItem::ItemIsMovable);
+    new_scene->setBackgroundImage(&modified_image);
     ui->graphicsViewRight->setScene(new_scene);
 }
 
@@ -236,6 +329,10 @@ PMIG::~PMIG()
     delete original_scene;
     delete new_scene;
     delete ui;
+
+    delete sample_item;
+    delete sample_scene;
+
 }
 
 void PMIG::initFilterLists(){
@@ -330,4 +427,69 @@ void PMIG::slot_loadCustomConv(QListWidgetItem* item){
     std::vector<int> mat = filter->getMatrix();
     ui->customConvTable->init(filter->getHeight(), filter->getWidth(), &mat);
 
+}
+
+
+NewImageDialog::NewImageDialog(QWidget *parent) : QDialog(parent) {
+    QFormLayout *mainLayout = new QFormLayout(this);
+
+    QLabel *l1 = new QLabel(QString("Width"), this);
+    QSpinBox *s1 = new QSpinBox(this);
+    s1->setRange(1, 20000);
+
+    mainLayout->addRow(l1, s1);
+
+    fields << s1;
+
+    QLabel *l2 = new QLabel(QString("Height"), this);
+    QSpinBox *s2 = new QSpinBox(this);
+    s2->setRange(1, 20000);
+
+    fields << s2;
+
+    mainLayout->addRow(l2, s2);
+
+    QDialogButtonBox *db = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+        Qt::Horizontal, this);
+
+    mainLayout->addRow(db);
+
+    bool connect;
+
+    connect = this->connect(db, &QDialogButtonBox::accepted,
+                            this, &NewImageDialog::accept);
+
+    Q_ASSERT(connect);
+
+    connect = this->connect(db, &QDialogButtonBox::rejected,
+                            this, &NewImageDialog::reject);
+
+    Q_ASSERT(connect);
+
+    this->setLayout(mainLayout);
+
+    //free mainLayout;
+}
+
+QList<int> NewImageDialog::getVals(QWidget *parent, bool *ok){
+    NewImageDialog *d = new NewImageDialog(parent);
+
+    QList<int> list;
+
+    const int ret = d->exec();
+
+    if(ok){
+        *ok = !!ret;
+    }
+
+    if (ret) {
+        foreach (QSpinBox* field, d->fields) {
+            list << field->value();
+        }
+    }
+
+    d->deleteLater();
+
+    return list;
 }

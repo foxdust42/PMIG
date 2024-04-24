@@ -7,6 +7,10 @@ namespace Widgets {
 //ImageView::ImageView() {}
 void ImageView::mousePressEvent(QMouseEvent *event){
     QGraphicsView::mousePressEvent(event);
+
+
+    //QTextStream(stdout) << event->pos().x() << " " << event->pos().y() << "\n";
+    //QTextStream(stdout) << event->localPos().x() << " " << event->localPos().y() << "\n";
     //this->scream();
 }
 
