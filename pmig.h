@@ -43,7 +43,12 @@ public slots:
 
     void slot_updateColor(int);
     void slot_updateThickness(int);
+    void slot_updateComponentType();
+    void slot_clearVector();
+    void slot_setAntialias();
 
+    void slot_saveVectorComponents();
+    void slot_loadVectorComponents();
 private:
     Ui::PMIG *ui;
 

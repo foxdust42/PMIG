@@ -241,6 +241,31 @@
           <string>Vectors</string>
          </attribute>
          <layout class="QGridLayout" name="gridLayout_6">
+          <item row="1" column="0">
+           <widget class="QWidget" name="widget" native="true">
+            <layout class="QVBoxLayout" name="verticalLayout_3">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <spacer name="verticalSpacer">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
           <item row="0" column="0">
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
@@ -308,7 +333,7 @@
                 </widget>
                </item>
                <item row="0" column="1">
-                <widget class="QCheckBox" name="checkBox">
+                <widget class="QCheckBox" name="checkBox_Antialias">
                  <property name="text">
                   <string> (Ignores Thickness)</string>
                  </property>
@@ -405,32 +430,46 @@
               </layout>
              </widget>
             </item>
+            <item>
+             <widget class="QFrame" name="frame_3">
+              <property name="minimumSize">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Shape::StyledPanel</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Shadow::Raised</enum>
+              </property>
+              <layout class="QHBoxLayout" name="horizontalLayout">
+               <item>
+                <widget class="QPushButton" name="pushButton_VecDel">
+                 <property name="text">
+                  <string>Delete</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton_VecSetCol">
+                 <property name="text">
+                  <string>Set Color</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton_VecSetThi">
+                 <property name="text">
+                  <string>Set Thick.</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
            </layout>
-          </item>
-          <item row="1" column="0">
-           <widget class="QWidget" name="widget" native="true">
-            <layout class="QVBoxLayout" name="verticalLayout_3">
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <spacer name="verticalSpacer">
-               <property name="orientation">
-                <enum>Qt::Orientation::Vertical</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>20</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
           </item>
          </layout>
         </widget>
@@ -468,6 +507,9 @@
     <addaction name="actionSave"/>
     <addaction name="separator"/>
     <addaction name="actionReset_Image"/>
+    <addaction name="separator"/>
+    <addaction name="actionSave_Vector_Components"/>
+    <addaction name="action_Load_Vector_Components"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -487,6 +529,7 @@
      <addaction name="actionLuminosity"/>
     </widget>
     <addaction name="menuGrayscale"/>
+    <addaction name="action_Clear_Vector_Components"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuImage"/>
@@ -556,6 +599,30 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="action_Clear_Vector_Components">
+   <property name="text">
+    <string>&amp;Clear Vector Components</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::ApplicationSpecificRole</enum>
+   </property>
+  </action>
+  <action name="actionSave_Vector_Components">
+   <property name="text">
+    <string>Save &amp;Vector Components</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::ApplicationSpecificRole</enum>
+   </property>
+  </action>
+  <action name="action_Load_Vector_Components">
+   <property name="text">
+    <string>&amp;Load Vector Components</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::ApplicationSpecificRole</enum>
    </property>
   </action>
  </widget>

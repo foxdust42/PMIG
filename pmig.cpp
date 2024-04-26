@@ -14,6 +14,7 @@
 #include <qscreen.h>
 #include <QMessageBox>
 #include <QDialogButtonBox>
+#include <fstream>
 
 PMIG::PMIG(QWidget *parent)
     : QMainWindow(parent)
@@ -103,8 +104,20 @@ PMIG::PMIG(QWidget *parent)
     ui->graphicsView_ColorPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     //ui->graphicsView_ColorPreview->fitInView(sample_image.rect());
 
+    ui->radioButton_Line->click();
 
+    QObject::connect(ui->radioButton_Line, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
+    QObject::connect(ui->radioButton_Polygon, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
+    QObject::connect(ui->radioButton_Circle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
 
+    QObject::connect(ui->pushButton_VecDel, &QPushButton::clicked, new_scene, &CustomGraphicsScene::deleteSelected);
+    QObject::connect(ui->pushButton_VecSetCol, &QPushButton::clicked, new_scene, &CustomGraphicsScene::setColorSelected);
+    QObject::connect(ui->pushButton_VecSetThi, &QPushButton::clicked, new_scene, &CustomGraphicsScene::setThicknessSelected);
+    QObject::connect(ui->action_Clear_Vector_Components, &QAction::triggered,this, &PMIG::slot_clearVector);
+    QObject::connect(ui->checkBox_Antialias, &QCheckBox::stateChanged, this, &PMIG::slot_setAntialias);
+
+    QObject::connect(ui->actionSave_Vector_Components, &QAction::triggered, this, &PMIG::slot_saveVectorComponents);
+    QObject::connect(ui->action_Load_Vector_Components, &QAction::triggered, this, &PMIG::slot_loadVectorComponents);
     //QObject::connect(ui->spinBox_Red, &QSpinBox::valueChanged, this, nullptr);
 
     //
@@ -112,6 +125,10 @@ PMIG::PMIG(QWidget *parent)
     QTextStream(stdout) << "Setup Done\n" ;
 
     //this->loadImage();
+}
+
+void PMIG::slot_setAntialias() {
+    new_scene->setAntialiasing(ui->checkBox_Antialias->isChecked());
 }
 
 void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out){
@@ -122,6 +139,92 @@ void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString i
     msg.setText(text);
     msg.setInformativeText(info_text);
     msg.exec();
+}
+
+void PMIG::slot_clearVector(){
+    new_scene->ClearVectorComponents();
+}
+
+void PMIG::slot_loadVectorComponents(){
+    if(this->modified_image.isNull()){
+        scream("Load error", QMessageBox::Critical, "Failed to Load image : No Image Found", "Nothing to load to", "No load: nowhere to load\n");
+        return;
+    }
+
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    tr("Load Vector Components"),
+                                                    "components.pmig.vec",
+                                                    tr("PMIG vector Files (*.pmig.vec *.json)"));
+
+    if (fileName.isNull()){
+        QTextStream(stdout) << "No load: File not found\n";
+        QMessageBox msg;
+        msg.setWindowTitle("Load error");
+        msg.setIcon(QMessageBox::Information);
+        msg.setText("Failed to LOad Vector Components : Failed to open file for reading");
+        msg.setInformativeText("Failed to load");
+        msg.exec();
+        return;
+    }
+
+    QFile infile(fileName);
+
+    if (!infile.open(QIODevice::ReadOnly | QIODevice::Text)){
+        scream("Failed to open file", QMessageBox::Critical, "Coudn't open file : system error", "failed to open file", "deserialize: noopen\n");
+        return;
+    }
+
+    new_scene->deserializeComponents(&infile);
+    infile.close();
+}
+
+void PMIG::slot_saveVectorComponents(){
+
+    if (new_scene->componentsCount() <= 0) {
+        scream("Save error", QMessageBox::Warning, "Failed to save Vector Components : nothing to save", "Nothing to save\n");
+        return;
+    }
+
+    if(this->new_scene == nullptr){
+        scream("Save error", QMessageBox::Critical, "Failed to Save image : No Image Found", "Nothing to save", "No save: nothing to save\n");
+        return;
+    }
+
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                                    tr("Save Vector Components"),
+                                                    "components.pmig.vec",
+                                                    tr("PMIG vector Files (*.pmig.vec *.json)"));
+
+    if (fileName.isNull()){
+        QTextStream(stdout) << "No save: File not found\n";
+        QMessageBox msg;
+        msg.setWindowTitle("Save error");
+        msg.setIcon(QMessageBox::Information);
+        msg.setText("Failed to Save Vector Components : Failed to open file for writing");
+        msg.setInformativeText("Failed to save");
+        msg.exec();
+        return;
+    }
+
+    std::ofstream savefile;
+    savefile.open(fileName.toStdString(), std::ios_base::out);
+    savefile << new_scene->serializeComponents();
+    savefile.close();
+}
+
+void PMIG::slot_updateComponentType(){
+    if (ui->radioButton_Line->isChecked()) {
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_LINE);
+    }
+    else if (ui->radioButton_Polygon->isChecked()) {
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_POLYGON);
+    }
+    else if (ui->radioButton_Circle->isChecked()) {
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_CIRCLE);
+    }
+    else {
+        throw std::logic_error("Failed to get checked button");
+    }
 }
 
 void PMIG::slot_updateColor(int){

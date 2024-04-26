@@ -14,10 +14,17 @@
 class VectorComponent;
 class MovedObject;
 
+enum VECTOR_COMPONENT_TYPE {
+    VECTOR_COMPONENT_LINE,
+    VECTOR_COMPONENT_POLYGON,
+    VECTOR_COMPONENT_CIRCLE,
+    INVALID
+};
+
 class CustomGraphicsScene : public QGraphicsScene {
     Q_OBJECT
 private:
-    static double constexpr hit_margin = 7.0;
+    static double constexpr hit_margin = 5.0;
 
     QImage *vec_raster = nullptr;
     QImage *base_image = nullptr;
@@ -44,11 +51,15 @@ private:
 
     bool antialias = false;
 
+    VECTOR_COMPONENT_TYPE selectedType = VECTOR_COMPONENT_TYPE::VECTOR_COMPONENT_LINE;
+
     void init();
 
     void renderTargetPoints(QImage *image, std::vector<QPoint> pts, const QImage *background);
 
     static int clamp(int val, int min, int max);
+
+    VectorComponent* (*generate)(int thickness, QRgb color);
 
 signals:
     void mousePressed(QGraphicsSceneMouseEvent *event);
@@ -88,16 +99,26 @@ public:
         this->base_color = qRgb(clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0 ,255));
     }
 
-};
+    void setVectorComponentType(VECTOR_COMPONENT_TYPE vct);
 
-class VectorComponentHandler {
-private:
-    std::vector<VectorComponent> components;
-    static constexpr double detection_distance = 1.5;
+    std::string serializeComponents();
 
-public:
-    //static double PointDistance(QPoint p1, QPoint p2);
-    void addComponent(VectorComponent c);
+    int componentsCount() {
+        return vec_items.size();
+    }
+
+    void deserializeComponents(QFile *in);
+
+    static VECTOR_COMPONENT_TYPE QStringToVCT(QString s);
+
+    // returns function pointer taking an int and QRgb and returning a pointer to a VectorComponent
+    static VectorComponent* (*VCTToGenerator(VECTOR_COMPONENT_TYPE vct)) (std::vector<QPoint>, int, QRgb);
+
+public slots:
+    void deleteSelected();
+    void setColorSelected(bool);
+    void setThicknessSelected();
+    void setAntialiasing(bool);
 };
 
 class VectorComponent
@@ -112,8 +133,13 @@ protected:
     void apply_brush(QImage* image, int x, int y, QRgb color);
 
     static int clamp(int val, int min, int max);
+
+    static QColor ColorMeld(QColor c1, QColor c2, float pos);
+
 public:
     std::vector<QPoint> points;
+
+    std::string SerializeSelf(std::string prepend = "");
 
     VectorComponent(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)){
         this->points = points;
@@ -145,6 +171,7 @@ public:
     //~VectorComponent(){}
 
     void setColor(unsigned char r, unsigned char g, unsigned char b);
+    void setColor(QRgb col);
     QRgb getColor();
 
     void SetThickness(int t) {
@@ -167,6 +194,9 @@ public:
 
     virtual bool ForceReady() = 0;
 
+    //virtual VectorComponent* Generate(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)) = 0;
+    //virtual VectorComponent* Generate(int thickness = 1, QRgb color = qRgb(0,0,0)) = 0;
+
     //virtual void mouseMoveEvent(QMouseEvent *event) = 0;
 };
 
@@ -176,6 +206,8 @@ protected:
     void renderLine_M(QImage* image, QPoint p1, QPoint p2);
     void renderLineLo(QImage* image, QPoint p1, QPoint p2);
     void renderLineHi(QImage* image, QPoint p1, QPoint p2);
+
+    void renderLineXiaolinWu(QImage* image, QPoint p1, QPoint p2);
 public:
     MidpointLine(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(points, thickness, color) {}
     MidpointLine(int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(thickness, color) {}
@@ -219,6 +251,10 @@ public:
 
     void RenderSelf(QImage* Image, bool anitalias = false) override;
 
+    const QString TypeSelf() override {
+        return QString("LinePolygon");
+    }
+
     bool IsRenderable() override {
         if(this->points.size() >= 2){
             return true;
@@ -256,6 +292,46 @@ public:
         this->is_closed = true;
         return IsReady();
     }
+
+};
+
+class VectorCircle : public VectorComponent {
+private:
+    void RenderAltMidpointCircle(QImage *image);
+
+    void RenderXiaolinWuCircle(QImage *image);
+
+    void ApplyReflectedBrush(QImage *image, QPoint c, int x, int y, QRgb color);
+
+    QColor XiaolinWuColorTransform(QColor Line, QColor Background, double T);
+
+public:
+    VectorCircle(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(points, thickness, color) {}
+    VectorCircle(int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(thickness, color) {}
+
+    const QString TypeSelf() override {
+        return QString("VectorCircle");
+    }
+
+    bool IsRenderable() override {
+        if (points.size() < 2) {
+            return false;
+        }
+        return true;
+    }
+
+    bool IsReady() override {
+        return this->IsRenderable();
+    }
+
+    bool ForceReady() override {
+        return this->IsReady();
+    }
+
+    void RenderSelf(QImage* Image, bool anitalias = false) override;
+
+    MovedObject* CheckClickMove(QPoint clickPos, double tolerance) override;
+    MovedObject* MoveAll(QPoint clickPos, double tolerance) override;
 
 };
 
