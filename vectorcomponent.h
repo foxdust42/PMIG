@@ -18,6 +18,7 @@ enum VECTOR_COMPONENT_TYPE {
     VECTOR_COMPONENT_LINE,
     VECTOR_COMPONENT_POLYGON,
     VECTOR_COMPONENT_CIRCLE,
+    VECTOR_COMPONENT_HALF_CIRCLES,
     INVALID
 };
 
@@ -351,6 +352,23 @@ public:
     }
 
     void MoveTo(QPoint newPos);
+
+};
+
+class HalfCircles : public MidpointLine {
+private:
+    static int constexpr no_halfcircles = 5;
+
+    void RenderAltMidpointCircle(QImage *image, QPoint center, int R, QPoint l1, QPoint l2, bool side);
+
+    void ApplyReflectedBrush(QImage *image, QPoint c, int x, int y, QRgb color, QPoint l1, QPoint l2, bool side);
+
+public:
+    HalfCircles(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)) : MidpointLine(points, thickness, color) {}
+    HalfCircles(int thickness = 1, QRgb color = qRgb(0,0,0)) : MidpointLine(thickness, color) {}
+    const QString TypeSelf() override { return QString("HalfCircles");}
+
+    void RenderSelf(QImage* Image, bool anitalias = false) override;
 
 };
 

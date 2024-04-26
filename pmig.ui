@@ -304,6 +304,13 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QRadioButton" name="radioButton_HalfCircleLine">
+                 <property name="text">
+                  <string>Half Circle Line</string>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </item>

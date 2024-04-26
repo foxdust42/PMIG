@@ -149,6 +149,11 @@ void CustomGraphicsScene::setVectorComponentType(VECTOR_COMPONENT_TYPE vct){
             return new VectorCircle(thickness, color);
         };
         break;
+    case VECTOR_COMPONENT_HALF_CIRCLES:
+        this->generate = [](int thickness, QRgb color) -> VectorComponent* {
+            return new HalfCircles(thickness, color);
+        };
+        break;
     default:
         throw std::runtime_error("Invalid Component type");
     }
@@ -529,7 +534,8 @@ void MidpointLine::renderLineHi(QImage* image, QPoint p1, QPoint p2){
 
 void MidpointLine::renderLineXiaolinWu(QImage* image, QPoint p1, QPoint p2){
     QColor Line(this->color);
-    QColor Back(0,0,0,0);
+    QColor Back = Line;
+    Back.setAlpha(0);
 
     QColor c1, c2;
 
@@ -774,7 +780,8 @@ void VectorCircle::RenderXiaolinWuCircle(QImage *image){
     int x = R;
     int y = 0;
 
-    QColor BgColor = QColor(0, 0, 0, 0);
+    QColor BgColor = LineCol;
+    BgColor.setAlpha(0);
 
     float T;
 
@@ -924,6 +931,7 @@ VECTOR_COMPONENT_TYPE CustomGraphicsScene::QStringToVCT(QString s) {
     if (s == "Line") return VECTOR_COMPONENT_LINE;
     else if (s == "LinePolygon") return VECTOR_COMPONENT_POLYGON;
     else if (s == "VectorCircle") return VECTOR_COMPONENT_CIRCLE;
+    else if (s == "HalfCircles") return VECTOR_COMPONENT_HALF_CIRCLES;
     else return INVALID;
 }
 
@@ -935,6 +943,8 @@ VectorComponent* (*CustomGraphicsScene::VCTToGenerator(VECTOR_COMPONENT_TYPE vct
         return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new LinePolygon(pts, thickness, col);};
     case VECTOR_COMPONENT_CIRCLE:
         return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new VectorCircle(pts, thickness, col);};
+    case VECTOR_COMPONENT_HALF_CIRCLES:
+        return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new HalfCircles(pts, thickness, col);};
     default:
         return nullptr;
     }
@@ -1038,4 +1048,125 @@ err:
     vc.clear();
     throw std::runtime_error("Invalid document format");
 
+}
+
+void HalfCircles::RenderSelf(QImage* Image, bool anitalias) {
+    int R = this->PointDistance(this->points[0], this->points[1])/(this->no_halfcircles * 2);
+
+    int dx = points[1].x() - points[0].x();
+    int dy = points[1].y() - points[0].y();
+
+    int Rx, Ry;
+    if (dx == 0) {
+        Ry = R;
+        Rx = 0;
+    }
+    else if (dy == 0) {
+        Ry=0;
+        Rx=R;
+    }
+    else {
+        double tmp = std::atan( ((double)dy)/((double)dx) );
+        Rx = R * std::cos(tmp);
+        Ry = R * std::sin(tmp);
+
+    }
+
+    if (points[0].x() > points[1].x()){
+        Rx *= (-1);
+        Ry *= (-1);
+    }
+
+    std::vector<QPoint> centers;
+
+    for (int i=0; i < no_halfcircles; i++){
+        centers.push_back(QPoint(points[0].x() + (i)*(dx/no_halfcircles) + Rx, points[0].y() + (i)*(dy/no_halfcircles) + Ry ));
+    }
+
+    for (int i=0; i< no_halfcircles; i++){
+        this->RenderAltMidpointCircle(Image, centers[i], R, this->points[0], this->points[1], (bool)(i%2));
+    }
+
+}
+
+
+void HalfCircles::RenderAltMidpointCircle(QImage *image, QPoint center, int R, QPoint l1, QPoint l2, bool side){
+    //Only the 0deg - 45deg octet is calculated; the rest are reflections about the center
+    //double tmp = VectorComponent::PointDistance(points[0], points[1]);
+    //int R = (int)( tmp + 0.5f - (tmp < 0) );
+
+    int dE = 3;
+    int dSE = 5-2*R;
+    int d = 1-R;
+    int x = center.x();
+    int y = center.y() + R;
+    //apply_brush(image, x, y, this->color);
+
+    //int sidedness = (x - l1.x())*(l2.y()-l1.y()) - (y-l1.y()) * (l2.x() - l1.x());
+
+    ApplyReflectedBrush(image, center, x, y, this->color, l1, l2, side);
+    while ( (y - center.y()) > (x - center.x()))
+    {
+        if ( d < 0 ) //move to E
+        {
+            d += dE;
+            dE += 2;
+            dSE += 2;
+        }
+        else //move to SE
+        {
+            d += dSE;
+            dE += 2;
+            dSE += 4;
+            --y;
+        }
+        ++x;
+        //sidedness = (x - l1.x())*(l2.y()-l1.y()) - (y-l1.y()) * (l2.x() - l1.x());
+        ApplyReflectedBrush(image, center, x, y, this->color, l1, l2, side);
+        //apply_brush(image, x, y, this->color);
+    }
+}
+
+void HalfCircles::ApplyReflectedBrush(QImage *image, QPoint c, int x, int y, QRgb color, QPoint l1, QPoint l2, bool side){
+    int x_offset = x - c.x();
+    int y_offset = y - c.y();
+
+    int (*sidedness)(int , int, QPoint, QPoint);
+
+    if (side){
+        sidedness = [](int x, int y, QPoint l1, QPoint l2) -> int {
+            return (x - l1.x())*(l2.y()-l1.y()) - (y-l1.y()) * (l2.x() - l1.x());
+        };
+    }
+    else{
+        sidedness = [](int x, int y, QPoint l1, QPoint l2) -> int {
+            return (-1)*((x - l1.x())*(l2.y()-l1.y()) - (y-l1.y()) * (l2.x() - l1.x()));
+        };
+    }
+
+
+    if (sidedness(x, y, l1, l2) >= 0){
+        apply_brush(image, x, y, color);
+    }
+    if (sidedness(c.x() - x_offset, y, l1, l2) >= 0){
+        apply_brush(image, c.x() - x_offset, y , color);
+    }
+    if (sidedness(x, c.y() - y_offset, l1, l2) >= 0){
+        apply_brush(image, x, c.y() - y_offset , color);
+    }
+    if (sidedness(c.x() - x_offset, c.y() - y_offset, l1, l2) >= 0){
+        apply_brush(image, c.x() - x_offset, c.y() - y_offset , color);
+    }
+    if (sidedness(c.x() - y_offset, c.y() - x_offset, l1, l2) >= 0){
+        apply_brush(image, c.x() - y_offset, c.y() - x_offset, color);
+    }
+    if (sidedness(c.x() + y_offset, c.y() - x_offset, l1, l2) >= 0){
+        apply_brush(image, c.x() + y_offset, c.y() - x_offset, color);
+    }
+    if (sidedness(c.x() - y_offset, c.y() + x_offset, l1, l2) >= 0){
+        apply_brush(image, c.x() - y_offset, c.y() + x_offset, color);
+    }
+    if (sidedness(c.x() + y_offset, c.y() + x_offset, l1, l2) >= 0) {
+        apply_brush(image, c.x() + y_offset, c.y() + x_offset, color);
+    }
 }

@@ -109,6 +109,8 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->radioButton_Line, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_Polygon, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_Circle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
+    QObject::connect(ui->radioButton_HalfCircleLine, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
+
 
     QObject::connect(ui->pushButton_VecDel, &QPushButton::clicked, new_scene, &CustomGraphicsScene::deleteSelected);
     QObject::connect(ui->pushButton_VecSetCol, &QPushButton::clicked, new_scene, &CustomGraphicsScene::setColorSelected);
@@ -221,6 +223,9 @@ void PMIG::slot_updateComponentType(){
     }
     else if (ui->radioButton_Circle->isChecked()) {
         new_scene->setVectorComponentType(VECTOR_COMPONENT_CIRCLE);
+    }
+    else if (ui->radioButton_HalfCircleLine->isChecked()){
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_HALF_CIRCLES);
     }
     else {
         throw std::logic_error("Failed to get checked button");
