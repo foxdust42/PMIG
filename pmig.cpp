@@ -110,7 +110,7 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->radioButton_Polygon, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_Circle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_HalfCircleLine, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
-
+    QObject::connect(ui->radioButton_Rectangle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
 
     QObject::connect(ui->pushButton_VecDel, &QPushButton::clicked, new_scene, &CustomGraphicsScene::deleteSelected);
     QObject::connect(ui->pushButton_VecSetCol, &QPushButton::clicked, new_scene, &CustomGraphicsScene::setColorSelected);
@@ -122,6 +122,10 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->action_Load_Vector_Components, &QAction::triggered, this, &PMIG::slot_loadVectorComponents);
     //QObject::connect(ui->spinBox_Red, &QSpinBox::valueChanged, this, nullptr);
 
+    QObject::connect(ui->pushButton_VecFill, &QPushButton::clicked, this, &PMIG::slot_fillButton);
+    QObject::connect(ui->pushButton_LoadFillImage, &QPushButton::clicked, this, &PMIG::slot_fillImageLoad);
+    QObject::connect(ui->pushButton_ClearFillImage, &QPushButton::clicked, this, &PMIG::slot_fillImageClear);
+
     //
 
     QTextStream(stdout) << "Setup Done\n" ;
@@ -131,6 +135,10 @@ PMIG::PMIG(QWidget *parent)
 
 void PMIG::slot_setAntialias() {
     new_scene->setAntialiasing(ui->checkBox_Antialias->isChecked());
+}
+
+void PMIG::slot_fillButton(){
+    new_scene->FillPolygon();
 }
 
 void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out){
@@ -145,6 +153,43 @@ void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString i
 
 void PMIG::slot_clearVector(){
     new_scene->ClearVectorComponents();
+}
+
+void PMIG::slot_fillImageLoad(){
+
+    if (!new_scene->CanSetImage()){
+        PMIG::scream("Connot set image fill", QMessageBox::Critical,
+                     QString("Select a polygon first!"), QString(), "");
+        return;
+    }
+
+    QString fileName =
+        QFileDialog::getOpenFileName(this,
+                                     tr("Open Image"),
+                                     "",
+                                     tr("Image Files (*.png *.jpg *.bmp)"));
+
+    if (fileName.isNull()){
+        QTextStream(stdout) << "No file selected\n";
+        return;
+    }
+
+    image = QImage(fileName);
+
+    //QImage::Format f = QImage::Format::Format_A2BGR30_Premultiplied;
+
+    //QTextStream(stdout) << image.format() << '\n';
+
+    if (image.isNull()){
+        QTextStream(stderr) << "Failed to load image";
+        return;
+    }
+
+    this->new_scene->SetFillImage(image);
+}
+
+void PMIG::slot_fillImageClear(){
+    new_scene->ClearFillImage();
 }
 
 void PMIG::slot_loadVectorComponents(){
@@ -207,10 +252,17 @@ void PMIG::slot_saveVectorComponents(){
         msg.exec();
         return;
     }
+    QFile savefile(fileName);
+    //std::ofstream savefile;
+    if (!savefile.open(QIODevice::Truncate | QIODevice::WriteOnly)){
+        PMIG::scream("Filed to open file for wrirting", QMessageBox::Information, "Failed to open or create file for saving", "", "");
+        return;
+    }
+    //savefile.open(fileName.toStdString(), std::ios_base::out);
 
-    std::ofstream savefile;
-    savefile.open(fileName.toStdString(), std::ios_base::out);
-    savefile << new_scene->serializeComponents();
+    QTextStream ts(&savefile);
+    ts << new_scene->serializeComponents();
+    //savefile << new_scene->serializeComponents();
     savefile.close();
 }
 
@@ -226,6 +278,9 @@ void PMIG::slot_updateComponentType(){
     }
     else if (ui->radioButton_HalfCircleLine->isChecked()){
         new_scene->setVectorComponentType(VECTOR_COMPONENT_HALF_CIRCLES);
+    }
+    else if (ui->radioButton_Rectangle->isChecked()){
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_RECTANGLE);
     }
     else {
         throw std::logic_error("Failed to get checked button");

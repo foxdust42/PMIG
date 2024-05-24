@@ -25,6 +25,8 @@ public:
     PMIG(QWidget *parent = nullptr);
     ~PMIG();
 
+    static void scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out = "");
+
 public slots:
     void slot_loadImage();
     void slot_listDClick(QListWidgetItem *item);
@@ -49,6 +51,11 @@ public slots:
 
     void slot_saveVectorComponents();
     void slot_loadVectorComponents();
+
+    void slot_fillButton();
+
+    void slot_fillImageLoad();
+    void slot_fillImageClear();
 private:
     Ui::PMIG *ui;
 
@@ -81,7 +88,6 @@ private:
     void initFilterLists();
     void pushFilter(Filters::BaseFilter *filter, int ind);
 
-    void scream(QString title, QMessageBox::Icon icon, QString text, QString info_text, QString out = "");
 
 
 };

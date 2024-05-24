@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
+#include "pmig.h"
 /*
 VectorComponent::VectorComponent(std::vector<QPoint> points) {
     this->points = points;
@@ -16,7 +17,6 @@ VectorComponent::VectorComponent(std::vector<QPoint> points) {
 void CustomGraphicsScene::init(){
     this->vec_over = new QGraphicsPixmapItem();
     this->bg_image = new QGraphicsPixmapItem();
-    //this->vec_raster = new QImage(0, 0, QImage::Format_RGBA64);
 
     this->target = QImage(":/vec/target.png");
     if (target.isNull()){
@@ -57,7 +57,7 @@ void CustomGraphicsScene::renderTargetPoints(QImage *image, std::vector<QPoint> 
             if (first){
                 first = false;
             }else {
-                continue;void setAntialiasing(bool);
+                continue;
             }
         }
 
@@ -71,13 +71,9 @@ void CustomGraphicsScene::renderTargetPoints(QImage *image, std::vector<QPoint> 
 
                 QColor c = image->pixelColor(curr_point);
 
-                //QTextStream(stdout) << " " << (target.pixelColor(i, j) == Qt::transparent ? 0 : 1);
-
                 if (c == Qt::transparent) {
                     c = background->pixelColor(curr_point);
                 }
-
-                //c = c == Qt::transparent ? background->pixelColor(curr_point) : c;
 
                 if (target.pixelColor(QPoint(i,j)) != Qt::transparent){
                     image->setPixel(curr_point, VectorComponent::invert( c.rgb()));
@@ -154,6 +150,11 @@ void CustomGraphicsScene::setVectorComponentType(VECTOR_COMPONENT_TYPE vct){
             return new HalfCircles(thickness, color);
         };
         break;
+    case VECTOR_COMPONENT_RECTANGLE:
+        this->generate = [](int thickness, QRgb color) -> VectorComponent* {
+            return new VectorRectangle(thickness, color);
+        };
+        break;
     default:
         throw std::runtime_error("Invalid Component type");
     }
@@ -208,12 +209,35 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
             }
             goto render;
         }
+        if ( (event->modifiers() & Qt::KeyboardModifier::AltModifier) != 0){
+            QTextStream(stdout) << "ALT\n";
+            MovedObject* m_tmp;
+            active->ClearClip();
+            for (int i=0; i< vec_items.size(); i++){
+                m_tmp = vec_items[i]->CheckClickMove(event->pos().toPoint(), hit_margin);
+                if (m_tmp != nullptr){
+                    if (vec_items[i]->CanClipTo()){
+                        active->SetClip(vec_items[i]);
+                        QTextStream("Set Clip\n");
+                    }
+                    else{
+                        PMIG::scream(QString("Cannot Clip To object"), QMessageBox::Critical, QString("Cannot clip to this vector component"), QString());
+                    }
+                    delete m_tmp;
+                    break;
+                }
+            }
+            QTextStream(stdout) << (active->GetClip() == nullptr ? "no clip " : "yes clip ") << "\n";
+            goto render;
+        }
         moved->MoveTo(event->pos().toPoint());
-
-        if (event->type() == QEvent::Type::MouseButtonRelease){
+        //
+        QTextStream(stdout) << active->IsConvex() << "\n";
+        //
+        /*if (event->type() == QEvent::Type::MouseButtonRelease){
             delete moved;
             moved = nullptr;
-        }
+        }*/
         goto render;
     }
     if (this->generated != nullptr){
@@ -288,7 +312,7 @@ void CustomGraphicsScene::setColorSelected(bool) {
     if (this->active != nullptr){
         this->active->setColor(this->base_color);
 
-        QTextStream(stdout) << QString::fromStdString(this->serializeComponents());
+        //QTextStream(stdout) << QString::fromStdString(this->serializeComponents());
         //QTextStream(stdout) << QString::fromStdString(this->active->SerializeSelf());
     }
 
@@ -300,6 +324,29 @@ void CustomGraphicsScene::setThicknessSelected() {
         this->active->SetThickness(this->base_thickness);
     }
     this->render();
+}
+
+void CustomGraphicsScene::FillPolygon(){
+    if (this->active == nullptr){
+        return;
+    }
+    if (this->active->GetFill()){
+        this->active->ClearFill();
+    }
+    else {
+        this->active->setFillColor(this->base_color);
+        this->active->SetFill();
+    }
+    this->render();
+}
+
+bool CustomGraphicsScene::CanSetImage(){
+    if (this->active == nullptr || !this->active->CanFill()){
+        return false;
+    }
+    else{
+        return true;
+    }
 }
 
 void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event){
@@ -385,6 +432,47 @@ void VectorComponent::setColor(QRgb col) {
     this->color = col;
 }
 
+void VectorComponent::setClipColor(unsigned char r, unsigned char g, unsigned char b){
+    this->clipColor = qRgb(r,g,b);
+}
+void VectorComponent::setClipColor(QRgb col){
+    this->clipColor = col;
+}
+QRgb VectorComponent::getClipColor(){
+    return this->clipColor;
+}
+
+void VectorComponent::setFillColor(unsigned char r, unsigned char g, unsigned char b){
+    this->fillColor = qRgb(r,g,b);
+}
+void VectorComponent::setFillColor(QRgb col){
+    this->fillColor = col;
+}
+QRgb VectorComponent::getFillColor(){
+    return this->fillColor;
+}
+
+
+void CustomGraphicsScene::SetFillImage(QImage img) {
+    if(this->active == nullptr) {return;}
+    if(!this->active->CanFill()){return;}
+    if(this->active->isFillImage()){
+        this->active->clearFillImage();
+        this->active->ClearFill();
+    }
+    this->active->setFillImage(img);
+    this->active->SetFill();
+    this->render();
+}
+
+void CustomGraphicsScene::ClearFillImage() {
+    if(this->active == nullptr) {return;}
+    if(!this->active->CanFill()){return;}
+    this->active->clearFillImage();
+    this->active->ClearFill();
+    this->render();
+}
+
 std::vector<std::vector<int> > VectorComponent::GenerateBrushMask(int n){
     double c = ((double) n)/2;
     std::vector<std::vector<int> > ans;
@@ -404,11 +492,11 @@ std::vector<std::vector<int> > VectorComponent::GenerateBrushMask(int n){
     return ans;
 }
 
-void VectorComponent::apply_brush(QImage *image, int x, int y, QRgb color){
-    for(int i=0; i < this->thickness; i++) {
-        for (int j=0; j < this->thickness; j++){
+void VectorComponent::apply_brush(QImage *image, int x, int y, QRgb color, int thickness, std::vector<std::vector<int> > brush_mask){
+    for(int i=0; i < thickness; i++) {
+        for (int j=0; j < thickness; j++){
             if (brush_mask[i][j] == 1){
-                image->setPixel(clamp(x + i - this->thickness/2, 0, image->width()), clamp(y + j - this->thickness/2, 0, image->height()), color);
+                image->setPixel(clamp(x + i - thickness/2, 0, image->width()), clamp(y + j - thickness/2, 0, image->height()), color);
             }
         }
     }
@@ -442,43 +530,281 @@ double VectorComponent::LineDistance(QPoint l1, QPoint l2, QPoint p) {
     return nominator/denominator;
 }
 
+void VectorComponent::FillVertexSorting(QImage *Image, VectorComponent *toFill, QRgb fillColor, QImage* fillImage) {
+    if (!toFill->CanFill()){
+        return;
+    }
+    AETE (*addAETEntry)(QPoint p1, QPoint p2) = [](QPoint p1, QPoint p2) -> AETE{
+        QPoint start, end;
+        if (p1.y() > p2.y()){
+            start = p2;
+            end = p1;
+        }
+        else {
+            start = p1;
+            end = p2;
+        }
+        int dy = end.y() - start.y();
+        int dx = end.x() - start.x();
+        double m_inv = ((double)dx)/((double)dy);
+        return AETE{end.y(), (double)start.x(), m_inv};
+    };
+    std::vector<AETE> AET;
+
+    std::vector<int> indicies = std::vector<int>(toFill->GetPoints().size()-1);
+    std::iota(indicies.begin(), indicies.end(), 0);
+
+    std::sort(indicies.begin(), indicies.end(), [&toFill](int a, int b) -> bool {
+        if(toFill->GetPoints()[a].y() < toFill->GetPoints()[b].y()){
+            return true;
+        }
+        return false;
+    });
+
+    int k=0;
+    int i = indicies[k];
+    int y = toFill->GetPoints()[indicies[0]].y();
+    //int y_min = y;
+    int y_max = toFill->GetPoints()[indicies[indicies.size()-1]].y();
+
+    while (y < y_max) {
+        while (toFill->GetPoints()[i].y() == y){
+            int tmp = (i-1) < 0 ? toFill->GetPoints().size()-2 : i-1;
+            if (toFill->GetPoints()[tmp].y() > toFill->GetPoints()[i].y()) {
+                AET.push_back(addAETEntry(toFill->GetPoints()[i], toFill->GetPoints()[tmp]));
+            }
+            if (toFill->GetPoints()[i+1].y() > toFill->GetPoints()[i].y()) {
+                AET.push_back(addAETEntry(toFill->GetPoints()[i], toFill->GetPoints()[(i+1)%(toFill->GetPoints().size()-1)]));
+            }
+            k++;
+            i = indicies[k];
+        }
+        //addAETEntry inserts sorted
+        std::sort(AET.begin(), AET.end(), [](AETE a, AETE b) -> bool {
+            if (a.x < b.x){
+                return true;
+            }
+            return false;
+        });
+
+        VectorComponent::RenderScanLine(Image, AET, y, fillColor, fillImage);
+        y++;
+        //remove entries with
+        {
+            std::vector<AETE> newAET;
+            for (int j = 0; j < AET.size(); j++){
+                if(AET[j].y_max != y){
+                    newAET.push_back(AET[j]);
+                }
+            }
+            AET = newAET;
+        }
+        for ( int j = 0; j < AET.size(); j++ ){
+            AET[j].x += AET[j].inv_m;
+        }
+    }
+}
+
+void VectorComponent::RenderScanLine(QImage *Image, std::vector<AETE> AET, int y, QRgb col, QImage* fillImage){
+    int x, next_x;
+    if (fillImage != nullptr){
+        goto img_fill;
+    }
+    for (int i=0; i+1<AET.size(); i+=2 ){
+        x = AET[i].x;
+        next_x = AET[i+1].x;
+        // if (x == next_x){
+        //     if (i+2 >= AET.size() ){
+        //         return;
+        //     }
+        //     i += 1;
+        //     next_x = AET[i+1].x;
+        // }
+        for (int j = x; j < next_x; j++){
+            Image->setPixel(QPoint(j, y), col);
+        }
+    }
+    return;
+img_fill:
+    for (int i=0; i+1<AET.size(); i+=2 ){
+        x = AET[i].x;
+        next_x = AET[i+1].x;
+        // if (x == next_x){
+        //     if (i+2 >= AET.size() ){
+        //         return;
+        //     }
+        //     i += 1;
+        //     next_x = AET[i+1].x;
+        // }
+        for (int j = x; j < next_x; j++){
+            Image->setPixel(QPoint(j, y), fillImage->pixel(j % fillImage->width(), y % fillImage->height()));
+        }
+    }
+    return;
+}
+
 void MidpointLine::RenderSelf(QImage* Image, bool antialias){
     if (this->points.size() < 2){
         throw std::logic_error("Cannot define a line with less that 2 points");
     }
 
-    QPoint p1 = this->points[0];
-    QPoint p2 = this->points[1];
+    std::vector<std::pair<QPoint, QPoint> > lines;
+    std::vector<std::pair<QPoint, QPoint> > clipped;
+    std::vector<std::pair<QPoint, QPoint> > unclipped;
+
+    lines.push_back(std::pair<QPoint, QPoint>(this->points[0], this->points[1]));
+
+    if( this->clipTo != nullptr){
+        clipped = MidpointLine::ClipLineCyrusBeck(lines, this->clipTo, &unclipped);
+    } else {
+        clipped = lines;
+        unclipped.clear();
+    }
+
     if (antialias){
-        this->renderLineXiaolinWu(Image, p1, p2);
+        for (std::pair<QPoint, QPoint> line : clipped) {
+            MidpointLine::renderLineXiaolinWu(Image, line.first, line.second, this->color, this->thickness, this->brush_mask);
+        }
+        for (std::pair<QPoint, QPoint> line : unclipped) {
+            MidpointLine::renderLineXiaolinWu(Image, line.first, line.second, this->clipColor, this->thickness, this->brush_mask);
+        }
     }
     else {
-        this->renderLine_M(Image, p1, p2);
+        for (std::pair<QPoint, QPoint> line : clipped) {
+            MidpointLine::renderLine_M(Image, line.first, line.second, this->color, this->thickness, this->brush_mask);
+        }
+        for (std::pair<QPoint, QPoint> line : unclipped) {
+            MidpointLine::renderLine_M(Image, line.first, line.second, this->clipColor, this->thickness, this->brush_mask);
+        }
+    }
+
+}
+
+std::vector<QPoint> VectorComponent::GetOutwardNormals(std::vector<edge> edges, QPoint center, std::vector<QPoint> *lineAnchors) {
+    std::vector<QPoint> normals;
+    std::vector<QPoint> anchors;
+    QPoint anchor;
+    QPoint normal;
+    for (int i=0; i < edges.size(); i++){
+        normal = VectorComponent::GetOutwardNormal(edges[i].first, edges[i].second, center, &anchor);
+        normals.push_back(normal);
+        anchors.push_back(anchor);
+    }
+    if (lineAnchors != nullptr) {
+        *lineAnchors = anchors;
+    }
+    return normals;
+}
+
+std::vector<std::pair<QPoint, QPoint> > MidpointLine::ClipLineCyrusBeck(const std::vector<edge> lines, const VectorComponent* const against, std::vector<std::pair<QPoint, QPoint> > *unclipped){
+
+    std::vector<edge> clip;
+    std::vector<edge> no_clip;
+
+    std::vector<edge> edges = against->GetEdges();
+    std::vector<QPoint> lineAnchors;
+
+    std::vector<QPoint> OutNormals =  VectorComponent::GetOutwardNormals(edges, against->VertexCenterOfMass(), &lineAnchors);
+
+    bool discard = false;
+
+    double (*get_t)(QPoint normal, QPoint P_0, QPoint P_E, QPoint D) = [](QPoint normal, QPoint P_0, QPoint P_E, QPoint D) -> double {
+        return ((double)VectorComponent::InnerProduct(normal, (P_0 - P_E))) / ((double)VectorComponent::InnerProduct(-normal, D));
+    };
+
+    for (std::pair<QPoint, QPoint> line : lines) {
+        if (line.first == line.second) {
+            continue;
+        }
+        discard = false;
+        QPoint D = line.second - line.first;
+        double tE = 0.0, tL = 1.0;
+        for (int i = 0; i < edges.size(); i++) {
+            if (VectorComponent::InnerProduct(OutNormals[i], D) == 0){ // parallel lines
+                if (VectorComponent::InnerProduct(OutNormals[i], (line.second - lineAnchors[i]) )) {
+                    discard = true;
+                    break;
+                }
+            }
+            else {
+                double t = get_t(OutNormals[i], line.first, lineAnchors[i], D);
+                if (VectorComponent::InnerProduct(OutNormals[i], D) < 0) {
+                        tE = std::max(tE, t);
+                }
+                else {
+                    tL = std::min(tL, t);
+                }
+            }
+        }
+        if (tE > tL || discard) {
+            no_clip.push_back(line);
+        }
+        else {
+            QPoint clipStart, clipEnd;
+            if (tE > 0.0) {
+                //clipStart = line.first + D * tE;
+                clipStart.rx() = line.first.x() + D.x() * tE;
+                clipStart.ry() = line.first.y() + D.y() * tE;
+                no_clip.push_back(edge(line.first, clipStart));
+            }
+            else {
+                clipStart = line.first;
+            }
+            if (tL < 1.0) {
+                clipEnd = line.first + D * tL;
+                no_clip.push_back(edge(clipEnd, line.second));
+            }
+            else {
+                clipEnd = line.second;
+            }
+            clip.push_back(edge(clipStart, clipEnd));
+        }
+    }
+    if (unclipped != nullptr) {
+        *unclipped = no_clip;
+    }
+    return clip;
+}
+
+
+QPoint VectorComponent::GetOutwardNormal(QPoint p1, QPoint p2, QPoint center, QPoint *lineAnchor){
+    QPoint anchor = QPoint((p1.x() + p2.x())/2, (p1.y() + p2.y())/2);
+    QPoint norm = QPoint(-(p2.y() - p1.y()), p2.x() - p1.x());
+    QPoint to_anchor = QPoint((anchor.x() - center.x()), anchor.y() - center.y());
+    if (lineAnchor != nullptr) {
+        lineAnchor->rx() = anchor.x();
+        lineAnchor->ry() = anchor.y();
+    }
+    if (VectorComponent::InnerProduct(norm, to_anchor) > 0){
+        return norm;
+    } else {
+        return (-1)*norm;
     }
 }
 
-void MidpointLine::renderLine_M(QImage* Image, QPoint p1, QPoint p2) {
+
+void MidpointLine::renderLine_M(QImage* Image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask) {
     // Based on Lecture 5 S. 11
     // and https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
     if ( std::abs(p2.y() - p1.y()) < std::abs(p2.x() - p1.x()) ){
         if (p1.x() > p2.x()){
-            renderLineLo(Image, p2, p1);
+            renderLineLo(Image, p2, p1, c, thickness, brush_mask);
         }
         else {
-            renderLineLo(Image, p1, p2);
+            renderLineLo(Image, p1, p2, c, thickness, brush_mask);
         }
     }
     else {
         if(p1.y() > p2.y()){
-            renderLineHi(Image, p2, p1);
+            renderLineHi(Image, p2, p1, c, thickness, brush_mask);
         }
         else {
-            renderLineHi(Image, p1, p2);
+            renderLineHi(Image, p1, p2, c, thickness, brush_mask);
         }
     }
 }
 
-void MidpointLine::renderLineLo(QImage* image, QPoint p1, QPoint p2){
+void MidpointLine::renderLineLo(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask){
     int dx = p2.x() - p1.x();
     int dy = p2.y() - p1.y();
     int yi = 1;
@@ -494,7 +820,7 @@ void MidpointLine::renderLineLo(QImage* image, QPoint p1, QPoint p2){
 
     for(int x = p1.x(); x<= p2.x(); x++){
         //image->setPixel(x, y, this->color);
-        apply_brush(image, x, y, this->color);
+        apply_brush(image, x, y, c, thickness, brush_mask);
         if (D < 0){
             D += 2 * dy;
         }
@@ -505,7 +831,7 @@ void MidpointLine::renderLineLo(QImage* image, QPoint p1, QPoint p2){
     }
 }
 
-void MidpointLine::renderLineHi(QImage* image, QPoint p1, QPoint p2){
+void MidpointLine::renderLineHi(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask){
     int dx = p2.x() - p1.x();
     int dy = p2.y() - p1.y();
     int xi = 1;
@@ -521,7 +847,7 @@ void MidpointLine::renderLineHi(QImage* image, QPoint p1, QPoint p2){
 
     for(int y = p1.y(); y<= p2.y(); y++){
         //image->setPixel(x, y, this->color);
-        apply_brush(image, x, y, this->color);
+        apply_brush(image, x, y, c, thickness, brush_mask);
         if (D < 0){
             D += 2 * dx;
         }
@@ -532,8 +858,8 @@ void MidpointLine::renderLineHi(QImage* image, QPoint p1, QPoint p2){
     }
 }
 
-void MidpointLine::renderLineXiaolinWu(QImage* image, QPoint p1, QPoint p2){
-    QColor Line(this->color);
+void MidpointLine::renderLineXiaolinWu(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask){
+    QColor Line(c);
     QColor Back = Line;
     Back.setAlpha(0);
 
@@ -636,16 +962,83 @@ void LinePolygon::RenderSelf(QImage* Image, bool antialias){
     if (!this->IsRenderable()){
         throw std::logic_error("Cannot define a polygon with less than 2 points");
     }
-    if(antialias){
-        for (int i=1; i<this->points.size(); i++){
-            this->renderLineXiaolinWu(Image, this->points[i-1], this->points[i]);
+    std::vector<std::pair<QPoint, QPoint> > lines;
+    std::vector<std::pair<QPoint, QPoint> > clipped;
+    std::vector<std::pair<QPoint, QPoint> > unclipped;
+
+    //lines.push_back(std::pair<QPoint, QPoint>(this->points[0], this->points[1]));
+
+    if (this->fill){
+
+        VectorComponent::FillVertexSorting(Image, this, this->fillColor, this->isFillImage() ? &this->FillImage : nullptr);
+    }
+
+    lines = this->GetEdges();
+
+    if( this->clipTo != nullptr){
+        clipped = MidpointLine::ClipLineCyrusBeck(lines, this->clipTo, &unclipped);
+    } else {
+        clipped = lines;
+        unclipped.clear();
+    }
+
+    if (antialias){
+        for (std::pair<QPoint, QPoint> line : clipped) {
+            MidpointLine::renderLineXiaolinWu(Image, line.first, line.second, this->color, this->thickness, this->brush_mask);
+        }
+        for (std::pair<QPoint, QPoint> line : unclipped) {
+            MidpointLine::renderLineXiaolinWu(Image, line.first, line.second, this->clipColor, this->thickness, this->brush_mask);
         }
     }
-    else{
-        for (int i=1; i<this->points.size(); i++){
-            this->renderLine_M(Image, this->points[i-1], this->points[i]);
+    else {
+        for (std::pair<QPoint, QPoint> line : clipped) {
+            MidpointLine::renderLine_M(Image, line.first, line.second, this->color, this->thickness, this->brush_mask);
+        }
+        for (std::pair<QPoint, QPoint> line : unclipped) {
+            MidpointLine::renderLine_M(Image, line.first, line.second, this->clipColor, this->thickness, this->brush_mask);
         }
     }
+
+}
+
+bool LinePolygon::IsConvex() {
+    //Note: A self intersecting polygon is not convex, even if all "interior" angles are less than 180 deg
+    // https://stackoverflow.com/a/45372025
+    if (this->points.size() < 3) {
+        return false;
+    }
+    double angle_sum = 0.0;
+    double angle;
+    QPoint p0, p1;
+    p0 = points[0];
+    p1 = points[1];
+    double o_dir;
+    double n_dir = std::atan2(p1.y() - p0.y(), p1.x() - p0.x());
+    double orientation;
+    for (int i=2; i< points.size() + 1; i++){
+        p0 = p1;
+        p1 = points[(i)%(points.size()-1)];
+        o_dir = n_dir;
+        n_dir = std::atan2(p1.y() - p0.y(), p1.x() - p0.x());
+        angle = n_dir - o_dir;
+        if (angle < -M_PI) {
+            angle += 2 * M_PI;
+        }
+        else if (angle > M_PI) {
+            angle -= 2 * M_PI;
+        }
+        if (i == 2) {
+            if (angle == 0.0) {return false;}
+            orientation = angle > 0.0 ? 1.0 : -1.0;
+        }
+        else {
+            if (orientation * angle <= 0.0) {return false;}
+        }
+        angle_sum += angle;
+    }
+
+    return std::abs((int)std::round(angle_sum/(2*M_PI))) == 1;
+
 }
 
 void MovedObject::MoveTo(QPoint newPos){
@@ -684,8 +1077,6 @@ MovedObject* LinePolygon::CheckClickMove(QPoint clickPos, double tolerance) {
             goto fin;
         }
     }
-
-    //whole polygon?
 
     // no hit
 
@@ -759,15 +1150,15 @@ void VectorCircle::ApplyReflectedBrush(QImage *image, QPoint c, int x, int y, QR
     int x_offset = x - c.x();
     int y_offset = y - c.y();
 
-    apply_brush(image, x, y, color);
-    apply_brush(image, c.x() - x_offset, y , color);
-    apply_brush(image, x, c.y() - y_offset , color);
-    apply_brush(image, c.x() - x_offset, c.y() - y_offset , color);
+    apply_brush(image, x, y, color, thickness, brush_mask);
+    apply_brush(image, c.x() - x_offset, y , color, thickness, brush_mask);
+    apply_brush(image, x, c.y() - y_offset , color, thickness, brush_mask);
+    apply_brush(image, c.x() - x_offset, c.y() - y_offset , color, thickness, brush_mask);
 
-    apply_brush(image, c.x() - y_offset, c.y() - x_offset, color);
-    apply_brush(image, c.x() + y_offset, c.y() - x_offset, color);
-    apply_brush(image, c.x() - y_offset, c.y() + x_offset, color);
-    apply_brush(image, c.x() + y_offset, c.y() + x_offset, color);
+    apply_brush(image, c.x() - y_offset, c.y() - x_offset, color, thickness, brush_mask);
+    apply_brush(image, c.x() + y_offset, c.y() - x_offset, color, thickness, brush_mask);
+    apply_brush(image, c.x() - y_offset, c.y() + x_offset, color, thickness, brush_mask);
+    apply_brush(image, c.x() + y_offset, c.y() + x_offset, color, thickness, brush_mask);
 }
 
 void VectorCircle::RenderXiaolinWuCircle(QImage *image){
@@ -837,7 +1228,6 @@ void VectorCircle::RenderXiaolinWuCircle(QImage *image){
         image->setPixel( points[0].x() - y, points[0].y() - x, c2.rgba());
         image->setPixel( points[0].x() - y, points[0].y() - (x-1), c1.rgba());
     }
-
 }
 
 MovedObject* VectorCircle::CheckClickMove(QPoint clickPos, double tolerance) {
@@ -879,34 +1269,72 @@ MovedObject* VectorCircle::MoveAll(QPoint clickPos, double tolerance) {
     return new MovedObject(pts, clickPos);
 }
 
-std::string VectorComponent::SerializeSelf(std::string prepend){
+QString VectorComponent::SerializeSelf(QString prepend){
     if (!this->IsReady()){
         throw std::logic_error("Cannot serialize an unfinished object");
     }
 
-    std::string self_rep;
+    QString self_rep;
 
     self_rep += prepend + "{\n";
-    self_rep += prepend + "\t\"type\": \"" + this->TypeSelf().toStdString() + "\",\n";
-    self_rep += prepend + "\t\"color\": [" + std::to_string(qRed(this->color)) + ", " + std::to_string(qGreen(this->color)) + ", " + std::to_string(qBlue(this->color)) + "],\n";
-    self_rep += prepend + "\t\"thickness\": " + std::to_string(this->thickness) + ",\n";
-
+    self_rep += prepend + "\t\"type\": \"" + QString(this->TypeSelf()) + "\",\n";
+    self_rep += prepend + "\t\"color\": [" + QString::number(qRed(this->color)) + ", " + QString::number(qGreen(this->color)) + ", " + QString::number(qBlue(this->color)) + "],\n";
+    self_rep += prepend + "\t\"thickness\": " + QString::number(this->thickness) + ",\n";
+    self_rep += prepend + "\t\"fill\": " + QString::number(this->fill) + ",\n";
+    self_rep += prepend + "\t\"fill_color\": [" + QString::number(qRed(this->fillColor)) + ", " + QString::number(qGreen(this->fillColor)) + ", " + QString::number(qBlue(this->fillColor)) + "],\n";
     self_rep += prepend + "\t\"points\": [\n";
 
     for (QPoint &p : this->points){
-        self_rep += prepend + "\t\t{\"x\": " + std::to_string(p.x()) + ", \"y\": " + std::to_string(p.y()) + "},\n";
+        self_rep += prepend + "\t\t{\"x\": " + QString::number(p.x()) + ", \"y\": " + QString::number(p.y()) + "},\n";
     }
-    self_rep.pop_back(); self_rep.pop_back(); self_rep += "\n";
-    self_rep += prepend + "\t]\n";
+    self_rep.chop(2);
+    self_rep += "\n";
+    self_rep += prepend + "\t]";
+    if(this->imgFill){
+        QByteArray bArr;
+        self_rep += ",\n";
+        QTextStream ts(&bArr);
+        self_rep += prepend + "\t\"image\": {\n";
+        self_rep += prepend + "\t\t\"width\": "  + QString::number(this->FillImage.width()) + ",\n";
+        self_rep += prepend + "\t\t\"height\": " + QString::number(this->FillImage.height()) + ",\n";
+        self_rep += prepend + "\t\t\"format\": " + QString::number(this->FillImage.format()) + ",\n";
+        self_rep += prepend + "\t\t\"data\": [";
+        //iod.open(QIODevice::WriteOnly);
+        //QTextStream(stdout) << this->FillImage.save(&iod, "PNG") << "\n";
+        //iod.close();
+        //iod.open(QIODevice::ReadOnly);
+        //QTextStream(stdout) << QString(iod.readAll()) << "\n";
+        //self_rep += QString(iod.readAll());
+        //uchar *bits = this->FillImage.scanLine(2);
+        for (int i = 0; i < this->FillImage.height(); i++){
+            QRgb* line = (QRgb*)this->FillImage.scanLine(i);
+            for (int j=0; j < this->FillImage.width(); j++){
+                QString r = QString::number(qRed(line[j]),16);
+                QString g = QString::number(qGreen(line[j]),16);
+                QString b = QString::number(qBlue(line[j]), 16);
+                if (r.size() == 1){r = "0" + r;}
+                if (g.size() == 1){g = "0" + g;}
+                if (b.size() == 1){b = "0" + b;}
+                self_rep += "\"" + r + g + b + "\", ";
+            }
+        }
+        self_rep.chop(2);
+        self_rep += "]\n";
+        self_rep += prepend + "\t}\n";
+    }
+    else{
+        self_rep += "\n";
+    }
     self_rep += prepend + "}";
 
+    //QTextStream(stdout) << self_rep << "\n";
     return self_rep;
 }
 
-std::string CustomGraphicsScene::serializeComponents(){
-    std::string ser;
+QString CustomGraphicsScene::serializeComponents(){
+    QString ser;
 
-    std::string tmp;
+    QString tmp;
 
     ser += "{\n";
     ser += "\t\"objects\": [\n";
@@ -921,9 +1349,10 @@ std::string CustomGraphicsScene::serializeComponents(){
 
         ser += tmp + ",\n";
     }
-    ser.pop_back(); ser.pop_back(); ser += "\n";
+    ser.chop(2); ser += "\n";
     ser += "\t]\n";
     ser += "}\n";
+    //QTextStream(stdout) << ser << "\n";
     return ser;
 }
 
@@ -932,6 +1361,7 @@ VECTOR_COMPONENT_TYPE CustomGraphicsScene::QStringToVCT(QString s) {
     else if (s == "LinePolygon") return VECTOR_COMPONENT_POLYGON;
     else if (s == "VectorCircle") return VECTOR_COMPONENT_CIRCLE;
     else if (s == "HalfCircles") return VECTOR_COMPONENT_HALF_CIRCLES;
+    else if (s == "Rectangle") return VECTOR_COMPONENT_RECTANGLE;
     else return INVALID;
 }
 
@@ -945,6 +1375,8 @@ VectorComponent* (*CustomGraphicsScene::VCTToGenerator(VECTOR_COMPONENT_TYPE vct
         return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new VectorCircle(pts, thickness, col);};
     case VECTOR_COMPONENT_HALF_CIRCLES:
         return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new HalfCircles(pts, thickness, col);};
+    case VECTOR_COMPONENT_RECTANGLE:
+        return [](std::vector<QPoint> pts, int thickenss, QRgb col) -> VectorComponent* {return new VectorRectangle(pts, thickenss, col);};
     default:
         return nullptr;
     }
@@ -960,9 +1392,9 @@ void CustomGraphicsScene::deserializeComponents(QFile *in){
     VectorComponent* (*gen)(std::vector<QPoint>, int thickness, QRgb color);
 
     QString type;
-    QRgb col;
+    QRgb col, fill_col;
     int r, g, b;
-    int thickness;
+    int thickness, fill;
     std::vector<QPoint> pts;
     VECTOR_COMPONENT_TYPE vct;
 
@@ -997,10 +1429,12 @@ void CustomGraphicsScene::deserializeComponents(QFile *in){
 
         current = objs[i].toObject();
 
-        if (!current.contains("type")       || !current.value("type").isString()     ||
-            !current.contains("color")      || !current.value("color").isArray()     ||
-            !current.contains("thickness")  || !current.value("thickness").isDouble()||
-            !current.contains("points")     || !current.value("points").isArray()   )
+        if (!current.contains("type")       || !current.value("type").isString()        ||
+            !current.contains("color")      || !current.value("color").isArray()        ||
+            !current.contains("thickness")  || !current.value("thickness").isDouble()   ||
+            !current.contains("points")     || !current.value("points").isArray()       ||
+            !current.contains("fill")       || !current.value("fill").isDouble()        ||
+            !current.contains("fill_color") || !current.value("fill_color").isArray()    )
                 continue;
 
         type = current.value("type").toString();
@@ -1025,14 +1459,66 @@ void CustomGraphicsScene::deserializeComponents(QFile *in){
 
         col = qRgb(r, g, b);
 
+        col_vals = current.value("fill_color").toArray();
+
+        if (col_vals.size() != 3) continue;//invalid
+
+        r = col_vals[0].toInt();
+        g = col_vals[1].toInt();
+        b = col_vals[2].toInt();
+
+        fill_col = qRgb(r, g, b);
+
+        fill = current.value("fill").toInt();
+
         verts = current.value("points").toArray();
 
         for (int j=0; j < verts.size(); j++){
             QJsonObject p = verts[j].toObject();
             pts.push_back(QPoint(p.value("x").toInt(), p.value("y").toInt()));
         }
+        VectorComponent* vec = gen(pts, thickness, col);
 
-        vc.push_back(gen(pts, thickness, col));
+        vec->setFillColor(fill_col);
+
+        if (fill) { vec->SetFill(); }
+        else{ vec->ClearFill(); }
+
+        if (current.contains("image") && current.value("image").isObject()){
+            QJsonObject imgObj = current.value("image").toObject();
+            if( imgObj.contains("width") && imgObj.value("width").isDouble() &&
+                imgObj.contains("height")&& imgObj.value("height").isDouble()&&
+                imgObj.contains("format")&& imgObj.value("format").isDouble() &&
+                imgObj.contains("data")  && imgObj.value("data").isArray()){
+
+                int width = imgObj.value("width").toInt();
+                int height = imgObj.value("height").toInt();
+                int format = imgObj.value("format").toInt();
+
+                QImage img(width, height, (QImage::Format)format);
+
+                QJsonArray data = imgObj.value("data").toArray();
+
+                for (int i = 0; i < height; i++){
+                    QRgb* line = (QRgb*)img.scanLine(i);
+                    for (int j=0; j < width; j++){
+                        QString val = data[i*width+j].toString();
+                        QString sr, sg, sb;
+                        sr = val.left(2);
+                        sg = val.left(4).right(2);
+                        sb = val.right(2);
+                        int r,g,b;
+                        r = sr.toInt(nullptr, 16);
+                        g = sg.toInt(nullptr, 16);
+                        b = sb.toInt(nullptr, 16);
+                        line[j] = qRgb(r,g,b);
+                    }
+                }
+                vec->setFillImage(img);
+            }
+        }
+
+        vc.push_back(vec);
     }
 
     this->ClearVectorComponents();
@@ -1146,27 +1632,189 @@ void HalfCircles::ApplyReflectedBrush(QImage *image, QPoint c, int x, int y, QRg
 
 
     if (sidedness(x, y, l1, l2) >= 0){
-        apply_brush(image, x, y, color);
+        apply_brush(image, x, y, color, thickness, brush_mask);
     }
     if (sidedness(c.x() - x_offset, y, l1, l2) >= 0){
-        apply_brush(image, c.x() - x_offset, y , color);
+        apply_brush(image, c.x() - x_offset, y , color, thickness, brush_mask);
     }
     if (sidedness(x, c.y() - y_offset, l1, l2) >= 0){
-        apply_brush(image, x, c.y() - y_offset , color);
+        apply_brush(image, x, c.y() - y_offset , color, thickness, brush_mask);
     }
     if (sidedness(c.x() - x_offset, c.y() - y_offset, l1, l2) >= 0){
-        apply_brush(image, c.x() - x_offset, c.y() - y_offset , color);
+        apply_brush(image, c.x() - x_offset, c.y() - y_offset , color, thickness, brush_mask);
     }
     if (sidedness(c.x() - y_offset, c.y() - x_offset, l1, l2) >= 0){
-        apply_brush(image, c.x() - y_offset, c.y() - x_offset, color);
+        apply_brush(image, c.x() - y_offset, c.y() - x_offset, color, thickness, brush_mask);
     }
     if (sidedness(c.x() + y_offset, c.y() - x_offset, l1, l2) >= 0){
-        apply_brush(image, c.x() + y_offset, c.y() - x_offset, color);
+        apply_brush(image, c.x() + y_offset, c.y() - x_offset, color, thickness, brush_mask);
     }
     if (sidedness(c.x() - y_offset, c.y() + x_offset, l1, l2) >= 0){
-        apply_brush(image, c.x() - y_offset, c.y() + x_offset, color);
+        apply_brush(image, c.x() - y_offset, c.y() + x_offset, color, thickness, brush_mask);
     }
     if (sidedness(c.x() + y_offset, c.y() + x_offset, l1, l2) >= 0) {
-        apply_brush(image, c.x() + y_offset, c.y() + x_offset, color);
+        apply_brush(image, c.x() + y_offset, c.y() + x_offset, color, thickness, brush_mask);
     }
 }
+
+void VectorRectangle::RenderSelf(QImage* Image, bool antialias) {
+
+    if (this->fill){
+        VectorComponent::FillVertexSorting(Image, this, this->fillColor, &this->FillImage);
+    }
+
+    if (antialias) {
+        MidpointLine::renderLineXiaolinWu(Image, this->points[0], this->phantom_points[0], this->color, thickness, brush_mask);
+        MidpointLine::renderLineXiaolinWu(Image, this->points[0], this->phantom_points[1], this->color, thickness, brush_mask);
+        MidpointLine::renderLineXiaolinWu(Image, this->points[1], this->phantom_points[0], this->color, thickness, brush_mask);
+        MidpointLine::renderLineXiaolinWu(Image, this->points[1], this->phantom_points[1], this->color, thickness, brush_mask);
+    }
+    else {
+        MidpointLine::renderLine_M(Image, this->points[0], this->phantom_points[0], this->color, thickness, brush_mask);
+        MidpointLine::renderLine_M(Image, this->points[0], this->phantom_points[1], this->color, thickness, brush_mask);
+        MidpointLine::renderLine_M(Image, this->points[1], this->phantom_points[0], this->color, thickness, brush_mask);
+        MidpointLine::renderLine_M(Image, this->points[1], this->phantom_points[1], this->color, thickness, brush_mask);
+    }
+}
+
+bool VectorRectangle::genPhantom() {
+    if(!this->IsReady()){
+        return false;
+    }
+    this->phantom_points.clear();
+    this->phantom_points.push_back(QPoint(this->points[0].x(), this->points[1].y()));
+    this->phantom_points.push_back(QPoint(this->points[1].x(), this->points[0].y()));
+    return true;
+}
+
+void VectorRectangle::addPoint(QPoint p) {
+    if(this->points.size() < 1) {
+        VectorComponent::addPoint(p);
+        return;
+    }
+    if (this->points.size() == 1) {
+        VectorComponent::addPoint(p);
+        if(!this->genPhantom()) {throw std::runtime_error("VectorRectangle::addPoint : this should be unreachable!");}
+        return;
+    }
+}
+
+bool VectorRectangle::IsReady(){
+    if(this->points.size() < 2) {
+        return false;
+    }
+    return true;
+}
+
+bool VectorRectangle::ForceReady(){
+    return this->IsReady();
+}
+
+MovedObject* VectorRectangle::CheckClickMove(QPoint clickPos, double tolerance) {
+    std::vector<QPoint*> all;
+    std::vector<QPoint*> mOX;
+    std::vector<QPoint*> mOY;
+
+    //points
+
+    ///Real
+    if (VectorComponent::PointDistance(clickPos, points[0]) <= tolerance){
+        all.push_back(&points[0]);
+        mOX.push_back(&phantom_points[0]);
+        mOY.push_back(&phantom_points[1]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    if (VectorComponent::PointDistance(clickPos, points[1]) <= tolerance){
+        all.push_back(&points[1]);
+        mOX.push_back(&phantom_points[1]);
+        mOY.push_back(&phantom_points[0]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    ///Phantom
+    if (VectorComponent::PointDistance(clickPos, phantom_points[0]) <= tolerance){
+        all.push_back(&phantom_points[0]);
+        mOX.push_back(&points[0]);
+        mOY.push_back(&points[1]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    if (VectorComponent::PointDistance(clickPos, phantom_points[1]) <= tolerance){
+        all.push_back(&phantom_points[1]);
+        mOX.push_back(&points[1]);
+        mOY.push_back(&points[0]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+
+    //edges
+
+    if (VectorComponent::LineDistance(points[0], phantom_points[0], clickPos) <= tolerance){
+        mOX.push_back(&points[0]);
+        mOX.push_back(&phantom_points[0]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    if (VectorComponent::LineDistance(points[1], phantom_points[1], clickPos) <= tolerance){
+        mOX.push_back(&points[1]);
+        mOX.push_back(&phantom_points[1]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+
+    if (VectorComponent::LineDistance(points[0], phantom_points[1], clickPos) <= tolerance){
+        mOY.push_back(&points[0]);
+        mOY.push_back(&phantom_points[1]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    if (VectorComponent::LineDistance(points[1], phantom_points[0], clickPos) <= tolerance){
+        mOY.push_back(&points[1]);
+        mOY.push_back(&phantom_points[0]);
+        return new RectangleMoveObject(all, mOX, mOY, clickPos);
+    }
+    return nullptr;
+}
+
+MovedObject* VectorRectangle::MoveAll(QPoint clickPos, double tolerance) {
+    MovedObject* mobj = this->CheckClickMove(clickPos, tolerance);
+    if (mobj == nullptr) {
+        return nullptr;
+    }
+    delete mobj;
+
+    std::vector<QPoint*> all;
+    std::vector<QPoint*> mOX;
+    std::vector<QPoint*> mOY;
+
+    for (QPoint &p : points){
+        all.push_back(&p);
+    }
+    for (QPoint &p : phantom_points){
+        all.push_back(&p);
+    }
+    return new RectangleMoveObject(all, mOX, mOY, clickPos);
+}
+
+void RectangleMoveObject::MoveTo(QPoint newPos){
+    QPoint offset = newPos - anchor;
+    anchor = newPos;
+    for (QPoint *p : pts){
+        *p += offset;
+    }
+    for (QPoint *p : movedOX){
+        p->rx() += offset.x();
+    }
+    for (QPoint *p : movedOY){
+        p->ry() += offset.y();
+    }
+}
+
+std::vector<QPoint> RectangleMoveObject::PointVals(){
+    std::vector<QPoint> res;
+    for (QPoint *p : pts) {
+        res.push_back(QPoint(p->x(), p->y()));
+    }
+    for (QPoint *p : movedOX) {
+        res.push_back(QPoint(p->x(), p->y()));
+    }
+    for (QPoint *p : movedOY) {
+        res.push_back(QPoint(p->x(), p->y()));
+    }
+    return res;
+}
+
