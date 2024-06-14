@@ -56,6 +56,8 @@ public slots:
 
     void slot_fillImageLoad();
     void slot_fillImageClear();
+
+    void slot_clipTo();
 private:
     Ui::PMIG *ui;
 
@@ -84,6 +86,7 @@ private:
     void loadRightImage();
 
     void newImage();
+    void newImageAuto();
 
     void initFilterLists();
     void pushFilter(Filters::BaseFilter *filter, int ind);

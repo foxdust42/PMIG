@@ -14,7 +14,6 @@
 #include <qscreen.h>
 #include <QMessageBox>
 #include <QDialogButtonBox>
-#include <fstream>
 
 PMIG::PMIG(QWidget *parent)
     : QMainWindow(parent)
@@ -77,7 +76,7 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->actionLightness, &QAction::triggered, this, &PMIG::slot_lightnessGray);
     QObject::connect(ui->actionAverage, &QAction::triggered, this, &PMIG::slot_averageGray);
     QObject::connect(ui->actionLuminosity, &QAction::triggered, this, &PMIG::slot_luminosityGray);
-
+    QObject::connect(ui->actionClipTo, &QAction::triggered, this, &PMIG::slot_clipTo);
     //
 
     QObject::connect(ui->action_New, &QAction::triggered, this, &PMIG::slot_newImage);
@@ -111,6 +110,7 @@ PMIG::PMIG(QWidget *parent)
     QObject::connect(ui->radioButton_Circle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_HalfCircleLine, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
     QObject::connect(ui->radioButton_Rectangle, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
+    QObject::connect(ui->radioButton_FloodFill, &QRadioButton::clicked, this, &PMIG::slot_updateComponentType);
 
     QObject::connect(ui->pushButton_VecDel, &QPushButton::clicked, new_scene, &CustomGraphicsScene::deleteSelected);
     QObject::connect(ui->pushButton_VecSetCol, &QPushButton::clicked, new_scene, &CustomGraphicsScene::setColorSelected);
@@ -129,6 +129,8 @@ PMIG::PMIG(QWidget *parent)
     //
 
     QTextStream(stdout) << "Setup Done\n" ;
+
+    this->newImageAuto();
 
     //this->loadImage();
 }
@@ -153,6 +155,12 @@ void PMIG::scream(QString title, QMessageBox::Icon icon, QString text, QString i
 
 void PMIG::slot_clearVector(){
     new_scene->ClearVectorComponents();
+}
+
+void PMIG::slot_clipTo(){
+    if(!new_scene->SetClip()){
+        PMIG::scream("Cannot clip nothing", QMessageBox::Information, "Select a vector component before clipping", "");
+    }
 }
 
 void PMIG::slot_fillImageLoad(){
@@ -282,6 +290,9 @@ void PMIG::slot_updateComponentType(){
     else if (ui->radioButton_Rectangle->isChecked()){
         new_scene->setVectorComponentType(VECTOR_COMPONENT_RECTANGLE);
     }
+    else if (ui->radioButton_FloodFill->isChecked()){
+        new_scene->setVectorComponentType(VECTOR_COMPONENT_FLOOD_FILL);
+    }
     else {
         throw std::logic_error("Failed to get checked button");
     }
@@ -380,6 +391,24 @@ void PMIG::newImage() {
     }
 
     image = QImage(size[0], size[1], QImage::Format::Format_RGB32);
+
+    image.fill(QColor::fromRgb(255,255,255));
+
+    original_scene->clear();
+    //original_scene = new QGraphicsScene(this);
+    ui->graphicsViewLeft->setScene(original_scene);
+
+    modified_image = QImage(image);
+    this->item = new QGraphicsPixmapItem(QPixmap::fromImage(image));
+    //this->item->setFlag(QGraphicsItem::ItemIsMovable);
+    original_scene->addItem(this->item);
+
+    loadRightImage();
+
+}
+
+void PMIG::newImageAuto(){
+    image = QImage(1000, 1000, QImage::Format::Format_RGB32);
 
     image.fill(QColor::fromRgb(255,255,255));
 

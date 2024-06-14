@@ -60,6 +60,7 @@ else()
             task2.h task2.cpp
             vectorcomponent.h vectorcomponent.cpp
             img_res.qrc
+            c3dobject.h c3dobject.cpp
         )
     endif()
 

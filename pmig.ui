@@ -318,6 +318,13 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="QRadioButton" name="radioButton_FloodFill">
+                 <property name="text">
+                  <string>Flood Fill</string>
+                 </property>
+                </widget>
+               </item>
               </layout>
              </widget>
             </item>
@@ -583,6 +590,7 @@
     </widget>
     <addaction name="menuGrayscale"/>
     <addaction name="action_Clear_Vector_Components"/>
+    <addaction name="actionClipTo"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuImage"/>
@@ -676,6 +684,11 @@
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::ApplicationSpecificRole</enum>
+   </property>
+  </action>
+  <action name="actionClipTo">
+   <property name="text">
+    <string>C&amp;lip To</string>
    </property>
   </action>
  </widget>

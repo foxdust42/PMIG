@@ -11,9 +11,16 @@
 #include <QRectF>
 #include <QTextStream>
 #include <QBuffer>
+#include <cmath>
+
+#include <Qt3DCore/Qt3DCore>
+
+#include "c3dobject.h"
 
 class VectorComponent;
 class MovedObject;
+class FloodFill;
+class CuboidMesh;
 
 enum VECTOR_COMPONENT_TYPE {
     VECTOR_COMPONENT_LINE,
@@ -21,6 +28,7 @@ enum VECTOR_COMPONENT_TYPE {
     VECTOR_COMPONENT_CIRCLE,
     VECTOR_COMPONENT_HALF_CIRCLES,
     VECTOR_COMPONENT_RECTANGLE,
+    VECTOR_COMPONENT_FLOOD_FILL,
     INVALID
 };
 
@@ -37,10 +45,16 @@ class CustomGraphicsScene : public QGraphicsScene {
 private:
     static double constexpr hit_margin = 3.0;
 
+    QTimer refresh;
+    static constexpr int updateINtervalMS = 10;
+
     QImage *vec_raster = nullptr;
     QImage *base_image = nullptr;
 
     QImage target;
+
+    C3DScene *scene;
+    CuboidMesh *cm;
 
     //QPixmap *result_img = nullptr;
 
@@ -72,6 +86,12 @@ private:
 
     VectorComponent* (*generate)(int thickness, QRgb color);
 
+    std::vector<FloodFill*> floodFills;
+
+    bool is_clipping = false;
+
+    void Tick();
+
 signals:
     void mousePressed(QGraphicsSceneMouseEvent *event);
 
@@ -79,6 +99,12 @@ public:
 
     void mousePressEvent(QGraphicsSceneMouseEvent *event);
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event);
+
+    void keyPressEvent(QKeyEvent *e)  {
+        if (this->scene != nullptr){
+            this->scene->mainCam->KeyEventHandler(e);
+        }
+    }
 
     //
 
@@ -134,6 +160,7 @@ public slots:
     void SetFillImage(QImage img);
     void ClearFillImage();
     bool CanSetImage();
+    bool SetClip();
 };
 
 class VectorComponent
@@ -147,7 +174,6 @@ protected:
 
     bool fill = false;
 
-    static std::vector<std::vector<int> > GenerateBrushMask(int n);
 
     static void apply_brush(QImage* image, int x, int y, QRgb color, int thickness, std::vector<std::vector<int> > brush_mask);
 
@@ -165,6 +191,7 @@ protected:
     bool imgFill = false;
 
 public:
+    static std::vector<std::vector<int> > GenerateBrushMask(int n);
     std::vector<QPoint> points;
 
     QString SerializeSelf(QString prepend = "");
@@ -283,7 +310,7 @@ public:
 
 class MidpointLine : public VectorComponent {
     //Midpoint Line Algorithm
-protected:
+public:
     static void renderLine_M(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask);
     static void renderLineLo(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask);
     static void renderLineHi(QImage* image, QPoint p1, QPoint p2, QRgb c, int thickness, std::vector<std::vector<int> > brush_mask);
@@ -409,7 +436,7 @@ public:
         return false;
     }
 
-    bool CanClipTo() override {return true;}
+    bool CanClipTo() override {return this->IsConvex();}
 
     bool IsConvex() override;
 
@@ -580,5 +607,77 @@ public:
 
     virtual void MoveTo(QPoint newPos) override;
 };
+
+class FloodFill : public VectorComponent {
+private:
+    static int ColorDiff(QRgb c1, QRgb c2){
+        int rd, gd, bd;
+        rd = (qRed(c1) - qRed(c2));
+        rd *= rd;
+        gd = (qGreen(c1) - qGreen(c2));
+        gd *= gd;
+        bd = (qBlue(c1) - qBlue(c2));
+        bd *= bd;
+        int val = (int)std::sqrt(rd + gd + bd);
+        return val;
+    }
+
+    int fillTolerance = 10;
+
+    //static void Fill(QImage* image, std::queue<QPoint> *queue, QRgb *baseColor, int *tolerance);
+
+public:
+
+    FloodFill(std::vector<QPoint> points, int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(points, thickness, color) {}
+
+    FloodFill(int thickness = 1, QRgb color = qRgb(0,0,0)) : VectorComponent(thickness, color) {}
+
+    void SetTolerance(int tol) {
+        this->fillTolerance = VectorComponent::clamp(tol, 0, 255);
+    }
+
+    int GetTolerance(){
+        return this->fillTolerance;
+    }
+
+    bool CanClipTo() override {return false;}
+    bool IsConvex() override {return false;}
+
+    bool CanFill() override {
+        return false;
+    }
+
+    void RenderSelf(QImage* Image, bool anitalias = false) override;
+
+    virtual MovedObject* CheckClickMove(QPoint clickPos, double tolreance) override;
+
+    virtual MovedObject* MoveAll(QPoint clickPos, double tolerance) override {
+        return this->CheckClickMove(clickPos, tolerance);
+    }
+
+    virtual const QString TypeSelf() override {
+        return QString("FloodFill");
+    }
+
+    virtual bool IsReady() override { return this->IsRenderable();}
+
+    virtual bool IsRenderable() override {
+        if (this->points.size() > 0) {return true;}
+        return false;
+    }
+
+    virtual bool ForceReady() override {
+        return IsReady();
+    };
+
+    virtual std::vector<std::pair<QPoint, QPoint> > GetEdges() const override {
+        return std::vector<edge>();
+    };
+
+};
+
+
+
+
 
 #endif // VECTORCOMPONENT_H

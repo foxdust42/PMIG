@@ -7,8 +7,11 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <queue>
 
-#include "pmig.h"
+#include <Qt3DCore/Qt3DCore>
+
+
 /*
 VectorComponent::VectorComponent(std::vector<QPoint> points) {
     this->points = points;
@@ -27,6 +30,44 @@ void CustomGraphicsScene::init(){
     this->addItem(vec_over);
 
     this->setVectorComponentType(VECTOR_COMPONENT_LINE);
+
+    this->scene = new C3DScene(this->width(), this->height(),
+                               &MidpointLine::renderLine_M, &VectorComponent::GenerateBrushMask);
+
+    std::vector<QRgb> cols1 = {
+        qRgb(0,  255/6,0), qRgb(0,  255/6,0),
+        qRgb(0,2*255/6,0), qRgb(0,2*255/6,0),
+        qRgb(0,3*255/6,0), qRgb(0,3*255/6,0),
+        qRgb(0,4*255/6,0), qRgb(0,4*255/6,0),
+        qRgb(0,5*255/6,0), qRgb(0,5*255/6,0),
+        qRgb(0,6*255/6,0), qRgb(0,6*255/6,0)
+    };
+
+    std::vector<QRgb> cols2 = {
+        qRgb(0,  255/6,200), qRgb(0,  255/6,200),
+        qRgb(0,2*255/6,200), qRgb(0,2*255/6,200),
+        qRgb(0,3*255/6,200), qRgb(0,3*255/6,200),
+        qRgb(0,4*255/6,200), qRgb(0,4*255/6,200),
+        qRgb(0,5*255/6,200), qRgb(0,5*255/6,200),
+        qRgb(0,6*255/6,200), qRgb(0,6*255/6,200)
+    };
+
+    CuboidMesh *c2 = new CuboidMesh(this->scene);
+    c2->OffsetSelf(QVector3D(1,0,0));
+    c2->SetTriagColors(cols1);
+
+    this->scene->AddObject(c2);
+
+    this->cm = new CuboidMesh(this->scene);
+    this->cm->OffsetSelf(QVector3D(-1,0,0));
+    this->cm->SetTriagColors(cols2);
+
+    this->scene->AddObject(cm);
+
+    QObject::connect(&this->refresh, &QTimer::timeout, this, &CustomGraphicsScene::Tick);
+    QObject::connect(this, &QGraphicsScene::sceneRectChanged, this->scene, &C3DScene::Resize);
+
+    refresh.start(updateINtervalMS);
 }
 
 void CustomGraphicsScene::renderTargetPoints(QImage *image, std::vector<QPoint> pts, const QImage *background){
@@ -123,6 +164,11 @@ void CustomGraphicsScene::ClearVectorComponents(){
     }
     vec_items.clear();
 
+    for (int i=0; i < floodFills.size(); i++){
+        delete floodFills[i];
+    }
+    floodFills.clear();
+
     this->render();
 }
 
@@ -155,6 +201,11 @@ void CustomGraphicsScene::setVectorComponentType(VECTOR_COMPONENT_TYPE vct){
             return new VectorRectangle(thickness, color);
         };
         break;
+    case VECTOR_COMPONENT_FLOOD_FILL:
+        this->generate = [](int thickness, QRgb color) -> VectorComponent* {
+            return new FloodFill(thickness, color);
+        };
+        break;
     default:
         throw std::runtime_error("Invalid Component type");
     }
@@ -182,7 +233,12 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
     if (event->button() == Qt::MouseButton::RightButton){
         if(generated != nullptr){
             if(generated->ForceReady()){
-                this->addComponent(generated);
+                if (CustomGraphicsScene::QStringToVCT(this->generated->TypeSelf()) == VECTOR_COMPONENT_FLOOD_FILL ){
+                    this->floodFills.push_back((FloodFill*)generated);
+                }
+                else {
+                    this->addComponent(generated);
+                }
             }
             else {
                 delete generated;
@@ -191,6 +247,7 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
         generated = nullptr;
         moved = nullptr;
         active = nullptr;
+        this->is_clipping = false;
         goto render;
     }
 
@@ -209,8 +266,9 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
             }
             goto render;
         }
-        if ( (event->modifiers() & Qt::KeyboardModifier::AltModifier) != 0){
+        if ( ((event->modifiers() & Qt::KeyboardModifier::AltModifier) != 0) || this->is_clipping){
             QTextStream(stdout) << "ALT\n";
+            this->is_clipping = false;
             MovedObject* m_tmp;
             active->ClearClip();
             for (int i=0; i< vec_items.size(); i++){
@@ -221,7 +279,7 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
                         QTextStream("Set Clip\n");
                     }
                     else{
-                        PMIG::scream(QString("Cannot Clip To object"), QMessageBox::Critical, QString("Cannot clip to this vector component"), QString());
+                        //PMIG::scream(QString("Cannot Clip To object"), QMessageBox::Critical, QString("Cannot clip to this vector component"), QString());
                     }
                     delete m_tmp;
                     break;
@@ -232,30 +290,35 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
         }
         moved->MoveTo(event->pos().toPoint());
         //
-        QTextStream(stdout) << active->IsConvex() << "\n";
+        //QTextStream(stdout) << active->IsConvex() << "\n";
         //
-        /*if (event->type() == QEvent::Type::MouseButtonRelease){
-            delete moved;
-            moved = nullptr;
-        }*/
+        //if (event->type() == QEvent::Type::MouseButtonRelease){
+        //    delete moved;
+        //    moved = nullptr;
+        //}
         goto render;
     }
     if (this->generated != nullptr){
         this->generated->addPoint(event->pos().toPoint());
 
         if (this->generated->IsReady()){
-            this->addComponent(this->generated);
+            if (CustomGraphicsScene::QStringToVCT(this->generated->TypeSelf()) == VECTOR_COMPONENT_FLOOD_FILL){
+                this->floodFills.push_back((FloodFill*)this->generated);
+            }
+            else {
+                this->addComponent(this->generated);
+            }
             this->generated = nullptr;
         }
-        else if(this->generated->IsRenderable()){
+        else if(this->generated->IsRenderable() && CustomGraphicsScene::QStringToVCT(this->generated->TypeSelf()) != VECTOR_COMPONENT_FLOOD_FILL ){
             this->generated->RenderSelf(vec_raster, this->antialias);
         }
         goto render;
     }
     if (this->active != nullptr) {
-        /*moved = active->MoveAll(event->pos().toPoint(), hit_margin);
-        if (moved == nullptr){
-        }*/
+        //moved = active->MoveAll(event->pos().toPoint(), hit_margin);
+        //if (moved == nullptr){
+        //}
         if (moved != nullptr) {
             //this->active = nullptr;
             goto render;
@@ -278,6 +341,14 @@ void CustomGraphicsScene::mousePressEvent(QGraphicsSceneMouseEvent *event){
 render:
     this->renderVectorComponents();
 
+    this->invalidate();
+
+    this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
+
+    for (FloodFill* fl : this->floodFills){
+        fl->RenderSelf(vec_raster, this->antialias);
+    }
+
     if (moved != nullptr) {
         renderTargetPoints(vec_raster, moved->PointVals(), base_image);
     }
@@ -286,12 +357,40 @@ render:
         renderTargetPoints(vec_raster, this->active->points, base_image);
     }
 
+    //cm->RenderSelf(vec_raster, false);
+
+    //cm->degY = (cm->degY + M_PI * 0.1) >= M_PI * 2 ? 0.0 : (cm->degY + M_PI * 0.1);
+
     this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
 
     this->invalidate();
 
     emit this->mousePressed(event);
 
+}
+
+void CustomGraphicsScene::Tick() {
+    if (vec_raster == nullptr){
+//        delete vec_raster;
+        vec_raster = new QImage(bg_image->pixmap().width(), bg_image->pixmap().height(), QImage::Format_RGBA64);
+    }
+    vec_raster->fill(Qt::transparent);
+
+    scene->RenderOnto(vec_raster);
+
+    //scene->mainCam->OrbitTickX(M_PI/256);
+
+    //scene->mainCam->OffsetPos(QVector3D(0.0, 0.05, 0.0));
+
+    // this->cm->OffsetSelf(QVector3D(0, 0.01, 0));
+
+    this->cm->RotateSelfX(M_PI/256);
+    //this->cm->RotateSelfY(M_PI/128);
+    this->cm->RotateSelfZ(M_PI/256);
+
+    this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
+
+    this->invalidate();
 }
 
 void CustomGraphicsScene::deleteSelected() {
@@ -306,6 +405,14 @@ void CustomGraphicsScene::deleteSelected() {
         }
     }
     this->render();
+}
+
+bool CustomGraphicsScene::SetClip() {
+    if (this->active == nullptr){
+        return false;
+    }
+    this->is_clipping = true;
+    return true;
 }
 
 void CustomGraphicsScene::setColorSelected(bool) {
@@ -363,13 +470,13 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event){
 
         this->renderVectorComponents();
 
-        if (moved != nullptr) {
-            renderTargetPoints(vec_raster, moved->PointVals(), base_image);
-        }
+        // if (moved != nullptr) {
+        //     renderTargetPoints(vec_raster, moved->PointVals(), base_image);
+        // }
 
-        if (active != nullptr && moved == nullptr){
-            renderTargetPoints(vec_raster, this->active->points, base_image);
-        }
+        // if (active != nullptr && moved == nullptr){
+        //     renderTargetPoints(vec_raster, this->active->points, base_image);
+        // }
 
         this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
 
@@ -378,13 +485,20 @@ void CustomGraphicsScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event){
 }
 
 void CustomGraphicsScene::render(){
-    if (vec_raster != nullptr){
-        delete vec_raster;
+    if (vec_raster == nullptr){
+//        delete vec_raster;
+        vec_raster = new QImage(bg_image->pixmap().width(), bg_image->pixmap().height(), QImage::Format_RGBA64);
     }
-    vec_raster = new QImage(bg_image->pixmap().width(), bg_image->pixmap().height(), QImage::Format_RGBA64);
     vec_raster->fill(Qt::transparent);
 
     this->renderVectorComponents();
+
+    this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
+
+    for (FloodFill* fl : this->floodFills){
+        fl->RenderSelf(vec_raster, this->antialias);
+    }
+
 
     if (moved != nullptr) {
         renderTargetPoints(vec_raster, moved->PointVals(), base_image);
@@ -394,8 +508,8 @@ void CustomGraphicsScene::render(){
         renderTargetPoints(vec_raster, this->active->points, base_image);
     }
 
-    this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
 
+    this->vec_over->setPixmap(QPixmap::fromImage(*vec_raster));
     this->invalidate();
 }
 
@@ -654,7 +768,7 @@ void MidpointLine::RenderSelf(QImage* Image, bool antialias){
 
     lines.push_back(std::pair<QPoint, QPoint>(this->points[0], this->points[1]));
 
-    if( this->clipTo != nullptr){
+    if( this->clipTo != nullptr && this->clipTo->CanClipTo()){
         clipped = MidpointLine::ClipLineCyrusBeck(lines, this->clipTo, &unclipped);
     } else {
         clipped = lines;
@@ -975,7 +1089,7 @@ void LinePolygon::RenderSelf(QImage* Image, bool antialias){
 
     lines = this->GetEdges();
 
-    if( this->clipTo != nullptr){
+    if( this->clipTo != nullptr && this->clipTo->CanClipTo()){
         clipped = MidpointLine::ClipLineCyrusBeck(lines, this->clipTo, &unclipped);
     } else {
         clipped = lines;
@@ -1362,6 +1476,7 @@ VECTOR_COMPONENT_TYPE CustomGraphicsScene::QStringToVCT(QString s) {
     else if (s == "VectorCircle") return VECTOR_COMPONENT_CIRCLE;
     else if (s == "HalfCircles") return VECTOR_COMPONENT_HALF_CIRCLES;
     else if (s == "Rectangle") return VECTOR_COMPONENT_RECTANGLE;
+    else if (s == "FloodFill") return VECTOR_COMPONENT_FLOOD_FILL;
     else return INVALID;
 }
 
@@ -1377,6 +1492,8 @@ VectorComponent* (*CustomGraphicsScene::VCTToGenerator(VECTOR_COMPONENT_TYPE vct
         return [](std::vector<QPoint> pts, int thickness, QRgb col) -> VectorComponent* {return new HalfCircles(pts, thickness, col);};
     case VECTOR_COMPONENT_RECTANGLE:
         return [](std::vector<QPoint> pts, int thickenss, QRgb col) -> VectorComponent* {return new VectorRectangle(pts, thickenss, col);};
+    case VECTOR_COMPONENT_FLOOD_FILL:
+        return [](std::vector<QPoint> pts, int thickenss, QRgb col) -> VectorComponent* {return new FloodFill(pts, thickenss, col);};
     default:
         return nullptr;
     }
@@ -1816,5 +1933,40 @@ std::vector<QPoint> RectangleMoveObject::PointVals(){
         res.push_back(QPoint(p->x(), p->y()));
     }
     return res;
+}
+
+MovedObject* FloodFill::CheckClickMove(QPoint clickPos, double tolreance){
+    std::vector<QPoint*> res;
+    if (VectorComponent::PointDistance(clickPos, this->points[0]) < tolreance) {
+        res.push_back(&this->points[0]);
+        return new MovedObject(res, clickPos);
+    }
+    return nullptr;
+}
+
+void FloodFill::RenderSelf(QImage* Image, bool anitalias) {
+    std::queue<QPoint> fillQueue;
+    QRgb baseColor = Image->pixel(this->points[0]);
+    QPoint n;
+
+    fillQueue.push(this->points[0]);
+    while (!fillQueue.empty()){
+        n = fillQueue.front();
+        fillQueue.pop();
+        if ( FloodFill::ColorDiff(Image->pixel(n), baseColor) > thickness){
+            continue;
+        }
+        if( Image->pixel(n) == this->color ){
+            continue;
+        }
+        //if ( Image->pixel(n) != baseColor ){
+            Image->setPixel(n, this->color);
+            if (n.x()-1 >= 0) {fillQueue.push(QPoint(n.x()-1, n.y()));}
+            if (n.x()+1 <= Image->width()) {fillQueue.push(QPoint(n.x()+1, n.y()));}
+            if (n.y()-1 >= 0) {fillQueue.push(QPoint(n.x(), n.y()-1));}
+            if (n.y()+1 <= Image->height() && n.y()+1 <= Image->height() ) {fillQueue.push(QPoint(n.x(), n.y()+1));}
+
+    }
+
 }
 
